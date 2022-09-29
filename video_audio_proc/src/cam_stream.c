@@ -16,15 +16,15 @@
 #include <time.h>
 
 #include <linux/videodev2.h>
-
+//https://www.cnblogs.com/kevin-heyongyuan/articles/11070935.html
 
 int main(void) {
   int fd;
 
-	// Open the device
+	// Open the device with read and write permission
 
 	if ((fd = open("/dev/video0", O_RDWR)) < 0) {
-		perror("Open");
+		perror("Can't open device");
 		exit(1);
 	}
 
@@ -33,11 +33,15 @@ int main(void) {
 	struct v4l2_capability cap;
 
 	if (ioctl(fd, VIDIOC_QUERYCAP, &cap) < 0) {
-		perror("VIDIOC_QUERYCAP");
+		perror("Failed to query camera capability.")
 		exit(1);
 	}
 
 	// printf("%u\n", cap.capabilities & V4L2_CAP_STREAMING);
+	if (!(cap.capabilities & V4L2_CAP_VIDEO_CAPTURE)) {
+		fprintf(stderr, "This device does not have video capture capabilties.");
+		exit(1);
+	}
 	if (!(cap.capabilities & V4L2_CAP_STREAMING)) {
 		fprintf(stderr, "This device does not have video streaming capabilties.");
 		exit(1);
@@ -47,12 +51,13 @@ int main(void) {
 
 	struct v4l2_format format;
 	format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	format.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
+	// format.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
+	format.fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG;
 	format.fmt.pix.width = 1920;
 	format.fmt.pix.height = 1080;
 
 	if (ioctl(fd, VIDIOC_S_FMT, &format) < 0) {
-		perror("VIDIOC_S_FMT");
+		perror("Failed to set given frame format");
 		exit(1);
 	}
 
@@ -61,16 +66,19 @@ int main(void) {
 	struct v4l2_requestbuffers req_buf;
 	req_buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	req_buf.memory = V4L2_MEMORY_MMAP;
+	// Change the number of requested buffer here
 	req_buf.count = 1;
 
 	if (ioctl(fd, VIDIOC_REQBUFS, &req_buf) < 0) {
-		perror("VIDIOC_REQBUFS");
+		perror("Failed to request buffer from device");
 		exit(1);
 	}
 
 	// Create the buffers and memory map
 
 	struct v4l2_buffer buffer_info;
+	
+	// Clean up the buffer before usage
 	memset(&buffer_info, 0, sizeof(buffer_info));
 
 	buffer_info.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -78,14 +86,14 @@ int main(void) {
 	buffer_info.index = 0;
 
 	if (ioctl(fd, VIDIOC_QUERYBUF, &buffer_info) < 0) {
-		perror("VIDIOC_QUERYBUF");
+		perror("Failed to create buffer");
 		exit(1);
 	}
 
 	void* buffer_start = mmap(NULL, buffer_info.length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, buffer_info.m.offset);
 
 	if (buffer_start == MAP_FAILED) {
-		perror("map");
+		perror("Failed to create memory mapping");
 		exit(1);
 	}
 
@@ -102,11 +110,14 @@ int main(void) {
 	// direct output to a file to save them
 
 	static int count = 0;
-	const int num_frames = 10;
+	const int num_frames = 60;
 	time_t start, end;
-	start = clock();
 
 	// This is where the buffers are queried and the frame pointer is updated
+	FILE *fp;
+	fp = fopen("output", "w");
+	start = clock();
+
 	while (count < num_frames) {
 		
 		if (ioctl(fd, VIDIOC_QBUF, &buffer_info) < 0) {
@@ -121,15 +132,20 @@ int main(void) {
 		
 		// Write what is contained in the buffer's memory address to the output
 		// TODO: INSTEAD OF OUTPUTTING THIS, SEND THROUGH NDI!!!
-		fwrite(buffer_start, buffer_info.length, 1, stdout);
+		fwrite(buffer_start, buffer_info.length, 1, fp);
 
 		count++;
 	}
 	end = clock();
+	if(ioctl(fd, VIDIOC_STREAMOFF, &type) < 0){
+    perror("VIDIOC_STREAMOFF");
+    exit(1);
+	}
+ 	fclose(fp);
 	
 	double total_time = (double)(end - start)/CLOCKS_PER_SEC;
 
-	fprintf(stderr, "Elapsed time = %f seconds", total_time);
+	fprintf(stderr, "%d frames in %f seconds \n", num_frames, total_time);
 
 	close(fd);
 	return EXIT_SUCCESS;
