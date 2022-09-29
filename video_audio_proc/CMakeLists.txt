@@ -13,7 +13,7 @@ include_directories(
   )
 
 add_executable(v4l_sdl_stream
-  src/v4l_sdl.c
+  src/v4l_sdl.cpp
 )
 
 target_link_libraries(v4l_sdl_stream

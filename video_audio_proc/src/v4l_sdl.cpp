@@ -2,7 +2,6 @@
 #include <SDL2/SDL.h>
 // sudo apt install libsdl2-image-dev
 #include <SDL2/SDL_image.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,7 +15,10 @@
 #include <sys/ioctl.h>
 #include <linux/videodev2.h>
 
-static char *dev_name = "/dev/video0";
+#include <iostream>
+#include <chrono>
+
+static char *dev_name = (char*)"/dev/video0";
 static int fd         = -1;
 static SDL_Window *window = NULL;
 static SDL_Renderer *renderer = NULL;
@@ -24,7 +26,13 @@ static SDL_Texture *texture = NULL;
 static void *buffer_start   = NULL;
 static size_t length        = 0;
 static struct v4l2_format fmt;
+static unsigned int fmt_width = 1920;
+static unsigned int fmt_height = 1080;
 static unsigned int fps = 60;
+
+#define now        std::chrono::high_resolution_clock::now();
+using time_point = std::chrono::high_resolution_clock::time_point;
+using duration   = std::chrono::duration<double>;
 
 static void errno_exit(const char *s) 
 {
@@ -35,7 +43,12 @@ static void errno_exit(const char *s)
 static void draw_YUV()
 {
 	// YUYV is two bytes per pixel, so multiple line width by 2
-	SDL_UpdateTexture(texture, NULL, buffer_start, fmt.fmt.pix.width * 2);
+
+	int pitch = fmt.fmt.pix.width * 2;
+	// SDL_LockTexture(texture, NULL, &buffer_start, &pitch);
+	// SDL_UnlockTexture(texture);
+	SDL_UpdateTexture(texture, NULL, buffer_start, pitch);
+
 
 	SDL_RenderClear(renderer);
 	SDL_RenderCopy(renderer, texture, NULL, NULL);
@@ -55,6 +68,15 @@ static void draw_MJPEG()
 	SDL_DestroyTexture(tx);
 	SDL_FreeSurface(frame);
 	SDL_RWclose(buf_stream);
+}
+
+static void draw_NV12()
+{
+	int pitch = fmt.fmt.pix.width;
+	SDL_UpdateTexture(texture, NULL, buffer_start, pitch);
+	SDL_RenderClear(renderer);
+	SDL_RenderCopy(renderer, texture, NULL, NULL);
+	SDL_RenderPresent(renderer);
 }
 
 
@@ -102,16 +124,39 @@ static void get_pixelformat()
 	desc.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
 	// iterate over all formats, and prefer MJPEG when available
+	std::cout << "This camera supports the following formats:" << std::endl;
 	while (ioctl(fd, VIDIOC_ENUM_FMT, &desc) == 0) {
 		desc.index++;
-
-		if (desc.pixelformat == V4L2_PIX_FMT_MJPEG) {
-			fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG;
-			printf("Using MJPEG\n");
-			return;
+		switch (desc.pixelformat) {
+			case V4L2_PIX_FMT_MJPEG:
+				std::cout << "MJPEG" << std::endl;
+				break;
+			case V4L2_PIX_FMT_NV12:
+				std::cout << "NV12" << std::endl;
+				break;
+			case V4L2_PIX_FMT_YUYV:
+				std::cout << "YUYV" << std::endl;
+				break;
+			default:
+				std::cout << "Unsupported" << std::endl;
+				break;
 		}
 	}
-	printf("Using YUYV\n");
+	std::cout << "Please type a format from above options:" << std::endl;
+	std::string format;
+	std::cin  >> format;
+	if ("MJPEG" == format)
+	{
+		fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG;
+	}
+	else if ("NV12" == format)
+	{
+		fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_NV12;
+	}
+	else if ("YUYV" == format)
+	{
+		fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
+	}
 }
 
 static void open_device(char* dev_name)
@@ -153,8 +198,8 @@ static void init_device(void)
 	get_pixelformat();
 
 	// it'll adjust to the bigger screen available in the driver
-	fmt.fmt.pix.width  = 3000;
-	fmt.fmt.pix.height = 3000;
+	fmt.fmt.pix.width  = fmt_width;
+	fmt.fmt.pix.height = fmt_height;
 
 	if (ioctl(fd, VIDIOC_S_FMT, &fmt) == -1)
 		errno_exit("VIDIOC_S_FMT");
@@ -216,6 +261,18 @@ static int init_view()
 			printf("Unable to initialize IMG\n");
 			return -1;
 		}
+	} 
+	else if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_NV12)
+	{
+		texture = SDL_CreateTexture(renderer,
+							SDL_PIXELFORMAT_NV12,
+							SDL_TEXTUREACCESS_STREAMING,
+							fmt.fmt.pix.width,
+							fmt.fmt.pix.height);
+		if (!texture) {
+			printf("SDL_CreateTexture failed: %s\n", SDL_GetError());
+			return -1;
+		}
 	}
 
 	printf("Device: %s\nWidth: %d\nHeight: %d\nFramerate: %d\n"
@@ -250,6 +307,7 @@ static void stop_capturing(void)
 
 static int read_frame()
 {
+	time_point start = now;
 	struct v4l2_buffer buf;
 	memset(&buf, 0, sizeof(buf));
 	buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -272,6 +330,8 @@ static int read_frame()
 		draw_YUV();
 	else if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_MJPEG)
 		draw_MJPEG();
+	else if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_NV12)
+		draw_NV12();
 
 	buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	buf.memory = V4L2_MEMORY_MMAP;
@@ -279,6 +339,9 @@ static int read_frame()
 	if (ioctl(fd, VIDIOC_QBUF, &buf) == -1)
 		errno_exit("VIDIOC_QBUF");
 
+	time_point end   = now;
+	duration d = end - start;
+	// std::cout << "Capturing one frame takes " << d.count() << "s" << std::endl;
 	return 1;
 }
 
@@ -294,6 +357,7 @@ static void mainloop(void)
 			struct timeval tv;
 			int r;
 
+			// Wait for file descriptor to be ready to read
 			FD_ZERO(&fds);
 			FD_SET(fd, &fds);
 
@@ -318,6 +382,7 @@ static void mainloop(void)
 
 			if (read_frame())
 				break;
+
 			// EAGAIN - continue select loop.
 		}
 	}
