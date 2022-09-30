@@ -15,8 +15,12 @@
 #include <sys/ioctl.h>
 #include <linux/videodev2.h>
 
+// C++ libraries
 #include <iostream>
 #include <chrono>
+
+// NDI headers
+#include <Processing.NDI.Advanced.h>
 
 static char *dev_name = (char*)"/dev/video0";
 static int fd         = -1;
@@ -29,6 +33,9 @@ static struct v4l2_format fmt;
 static unsigned int fmt_width = 1920;
 static unsigned int fmt_height = 1080;
 static unsigned int fps = 60;
+static NDIlib_video_frame_v2_t NDI_video_frame;
+static NDIlib_send_instance_t pNDI_send;
+static bool publish_ndi = false;
 
 #define now        std::chrono::high_resolution_clock::now();
 using time_point = std::chrono::high_resolution_clock::time_point;
@@ -79,6 +86,14 @@ static void draw_NV12()
 	SDL_RenderPresent(renderer);
 }
 
+static void send_NDI()
+{
+	time_point start = now;
+	NDIlib_send_send_video_v2(pNDI_send, &NDI_video_frame);
+	time_point end   = now;
+	duration d = end - start;
+	std::cout << "NDI processing time: " << d.count() << std::endl;
+}
 
 static int sdl_filter(void *userdata, SDL_Event *event)
 {
@@ -229,6 +244,24 @@ static void uninit_device(void)
 	if (munmap(buffer_start, length) == -1)
 		errno_exit("munmap");
 }
+
+static int init_ndi()
+{
+	if (!NDIlib_initialize()) 
+		errno_exit("Failed to initialize NDIlib");
+
+	pNDI_send = NDIlib_send_create();
+	if (!pNDI_send) 
+		errno_exit("Failed to initialize NDI send instance");
+	
+	NDI_video_frame.xres = fmt.fmt.pix.width;
+	NDI_video_frame.yres = fmt.fmt.pix.height;
+	NDI_video_frame.FourCC = NDIlib_FourCC_type_NV12;
+	// NDI_video_frame.p_data = (uint8_t*)malloc(NDI_video_frame.xres * NDI_video_frame.yres * 3/2);
+	NDI_video_frame.p_data = (uint8_t*)buffer_start;
+	return 0;
+}
+
 static int init_view()
 {
 	if (SDL_Init(SDL_INIT_VIDEO)) {
@@ -314,7 +347,6 @@ static int read_frame()
 	buf.memory = V4L2_MEMORY_MMAP;
 
 	if (ioctl(fd, VIDIOC_DQBUF, &buf) == -1) {
-		printf("ioctl dqbuf is wrong !!!\n");
 		switch (errno) {
 			case EAGAIN:
 				return 0;
@@ -333,15 +365,19 @@ static int read_frame()
 	else if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_NV12)
 		draw_NV12();
 
+	if (publish_ndi) 
+		send_NDI();
+
 	buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	buf.memory = V4L2_MEMORY_MMAP;
 
 	if (ioctl(fd, VIDIOC_QBUF, &buf) == -1)
 		errno_exit("VIDIOC_QBUF");
 
-	time_point end   = now;
+	time_point end = now;
 	duration d = end - start;
-	// std::cout << "Capturing one frame takes " << d.count() << "s" << std::endl;
+	std::cout << "d: " << d.count() <<std::endl;
+
 	return 1;
 }
 
@@ -353,35 +389,40 @@ static void mainloop(void)
 			if (event.type == SDL_QUIT)
 				return;
 		for (;;) {
-			fd_set fds;
-			struct timeval tv;
-			int r;
+			// fd_set fds;
+			// struct timeval tv;
+			// int r;
 
-			// Wait for file descriptor to be ready to read
-			FD_ZERO(&fds);
-			FD_SET(fd, &fds);
+			// // Wait for file descriptor to be ready to read
+			// FD_ZERO(&fds);
+			// FD_SET(fd, &fds);
 
-			tv.tv_sec = 2;
-			tv.tv_usec = 0;
+			// tv.tv_sec = 2;
+			// tv.tv_usec = 0;
 
-			r = select(fd + 1, &fds, NULL, NULL, &tv);
+			// r = select(fd + 1, &fds, NULL, NULL, &tv);
+			// if (-1 == r)
+			// {
+			// 	if (EINTR == errno)
+			// 		continue;
 
-			if (-1 == r)
-			{
-				if (EINTR == errno)
-					continue;
+			// 	errno_exit("select");
+			// }
 
-				errno_exit("select");
-			}
+			// if (0 == r)
+			// {
+			// 	fprintf(stderr, "select timeout\n");
+			// 	exit(EXIT_FAILURE);
+			// }
 
-			if (0 == r)
-			{
-				fprintf(stderr, "select timeout\n");
-				exit(EXIT_FAILURE);
-			}
-
+			time_point start = now;
 			if (read_frame())
+			{
+				time_point end   = now;
+				duration d = end - start;
+				std::cout << "One loop takes " << d.count() << "s" << std::endl;
 				break;
+			}
 
 			// EAGAIN - continue select loop.
 		}
@@ -436,6 +477,14 @@ int main(int argc, char **argv)
 		return -1;
 	}		
 
+	if (init_ndi()) {
+		// Destroy the NDI sender
+		NDIlib_send_destroy(pNDI_send);
+		// Not required, but nice
+		NDIlib_destroy();
+		return -1;
+	}
+
 	SDL_SetEventFilter(sdl_filter, NULL);
 
 	start_capturing();
@@ -444,5 +493,9 @@ int main(int argc, char **argv)
 	close_view();
 	uninit_device();
 	close_device();
+	// Destroy the NDI sender
+	NDIlib_send_destroy(pNDI_send);
+	// Not required, but nice
+	NDIlib_destroy();
 	return 0;
 }
