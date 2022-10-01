@@ -35,7 +35,7 @@ static unsigned int fmt_height = 1080;
 static unsigned int fps = 60;
 static NDIlib_video_frame_v2_t NDI_video_frame;
 static NDIlib_send_instance_t pNDI_send;
-static bool publish_ndi = false;
+static bool publish_ndi = true;
 
 #define now        std::chrono::high_resolution_clock::now();
 using time_point = std::chrono::high_resolution_clock::time_point;
@@ -89,7 +89,8 @@ static void draw_NV12()
 static void send_NDI()
 {
 	time_point start = now;
-	NDIlib_send_send_video_v2(pNDI_send, &NDI_video_frame);
+	// NDIlib_send_send_video_v2(pNDI_send, &NDI_video_frame);
+	NDIlib_send_send_video_async_v2(pNDI_send, &NDI_video_frame);
 	time_point end   = now;
 	duration d = end - start;
 	std::cout << "NDI processing time: " << d.count() << std::endl;
@@ -358,6 +359,10 @@ static int read_frame()
 		}
 	}
 
+	time_point end = now;
+	duration d = end - start;
+	std::cout << "DQBUF: " << d.count() <<std::endl;
+
 	if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_YUYV)
 		draw_YUV();
 	else if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_MJPEG)
@@ -374,9 +379,6 @@ static int read_frame()
 	if (ioctl(fd, VIDIOC_QBUF, &buf) == -1)
 		errno_exit("VIDIOC_QBUF");
 
-	time_point end = now;
-	duration d = end - start;
-	std::cout << "d: " << d.count() <<std::endl;
 
 	return 1;
 }

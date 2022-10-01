@@ -24,4 +24,13 @@ target_link_libraries(v4l_sdl_stream
 )
 
 
+add_executable(ndi_recv
+  src/ndi_recv.cpp
+)
+
+target_link_libraries(ndi_recv
+  ${SDL2_LIBRARIES}
+  ${SDL2_IMAGE_LIBRARIES}
+  ${CMAKE_SOURCE_DIR}/3rdparty/lib/x86_64-linux-gnu/libndi.so
+)
 
