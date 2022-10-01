@@ -20,9 +20,6 @@ std::string pixelformat = "UYVY";
 static void *buffer_start   = NULL;
 static int length = 0;
 
-	// The descriptors
-static NDIlib_video_frame_v2_t video_frame;
-static NDIlib_audio_frame_v2_t audio_frame;
 static void errno_exit(const char *s) 
 {
         fprintf(stderr, "%s error %d, %s\n", s, errno, strerror(errno));
@@ -172,8 +169,6 @@ int main(int argc, char* argv[])
 	NDIlib_recv_create_v3_t recv_param;
 	recv_param.color_format = NDIlib_recv_color_format_fastest;
 	NDIlib_recv_instance_t pNDI_recv = NDIlib_recv_create_v3(&recv_param);
-	video_frame.p_data = (uint8_t*)malloc(width * height * 4);
-	memset(video_frame.p_data, 0, 4*width*height);
 
 	if (!pNDI_recv)
 		return 0;
@@ -183,6 +178,11 @@ int main(int argc, char* argv[])
 
 	// Destroy the NDI finder. We needed to have access to the pointers to p_sources[0]
 	NDIlib_find_destroy(pNDI_find);
+	// The descriptors
+	static NDIlib_video_frame_v2_t video_frame;
+	static NDIlib_audio_frame_v2_t audio_frame;
+	video_frame.p_data = (uint8_t*)malloc(width * height * 4);
+	// memset(video_frame.p_data, 0, 4*width*height);
 
 	if (init_view() < 0)
 	{
@@ -194,6 +194,7 @@ int main(int argc, char* argv[])
 	using namespace std::chrono;
 	SDL_Event event;
 	for (;;) {
+		// Without this the SDL window will appear as no responding the the OS.
 		while (SDL_PollEvent(&event))
 		if (event.type == SDL_QUIT)
 			return 0;
@@ -207,10 +208,10 @@ int main(int argc, char* argv[])
 			case NDIlib_frame_type_video:
 				printf("Video data received (%dx%d).\n", video_frame.xres, video_frame.yres);
 				render(video_frame.p_data);
+				// Free buffer queue, necessary or the memory will keep accumulating
 				NDIlib_recv_free_video_v2(pNDI_recv, &video_frame);
 				
 				// output default video fourcc is UYVY
-				// std::cout << sizeof(video_frame.p_data) << std::endl;
 				std::cout << count++ <<std::endl;
 				break;
 

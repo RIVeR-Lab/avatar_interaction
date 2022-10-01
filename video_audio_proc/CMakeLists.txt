@@ -1,11 +1,12 @@
 cmake_minimum_required(VERSION 3.1.0)
-project(video_audio_proc)
+project(video_audio_proc C CXX)
 
 add_compile_options(-std=c++11 -O2 -Wall)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 
 find_package(SDL2 REQUIRED)
 find_package(SDL2_image REQUIRED)
+find_package(Threads REQUIRED)
 
 include_directories(
   3rdparty/include
@@ -34,3 +35,11 @@ target_link_libraries(ndi_recv
   ${CMAKE_SOURCE_DIR}/3rdparty/lib/x86_64-linux-gnu/libndi.so
 )
 
+add_executable(audio_proc
+  src/audio_proc.cpp
+)
+target_link_libraries(audio_proc
+  m
+  pthread
+  libdl.so
+)
