@@ -5,6 +5,12 @@ A simple program to capture from webcam like device and render it in SDL.
 
 Inspired from https://github.com/marcosps/v4l2_webcam
 
+## Dependencies
+`sudo apt install libsdl2-dev`
+
+
+`sudo apt install libsdl2-image-dev`
+
 ## Build (video streaming)
 
 1. `cd video_audio_proc && mkdir build && cd build`  
