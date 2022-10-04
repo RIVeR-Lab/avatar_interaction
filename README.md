@@ -19,7 +19,10 @@ Inspired from https://github.com/marcosps/v4l2_webcam
 The commands will generate an executable `v4l_sdl_stream` in the `build` folder.
 
 ## Usage
-Run `v4l_sdl_stream -d [device-name]` or just `v4l_sdl_stream` to capture from the default device.
+[Sender] Run `v4l_sdl_stream -d [device-name]` or just `v4l_sdl_stream` to capture from the default device.
+
+
+[Receiver] Run `./ndi_recv`
 
 
 
