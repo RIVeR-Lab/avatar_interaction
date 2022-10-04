@@ -250,8 +250,13 @@ static int init_ndi()
 {
 	if (!NDIlib_initialize()) 
 		errno_exit("Failed to initialize NDIlib");
+	
+	NDIlib_send_create_t send_create_t;
+	send_create_t.clock_audio = false;
+	send_create_t.clock_video = false;
+	send_create_t.p_ndi_name  = "v4l_sdl";
 
-	pNDI_send = NDIlib_send_create();
+	pNDI_send = NDIlib_send_create(&send_create_t);
 	if (!pNDI_send) 
 		errno_exit("Failed to initialize NDI send instance");
 	
