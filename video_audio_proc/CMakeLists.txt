@@ -25,6 +25,15 @@ target_link_libraries(v4l2_ndi_send
   ${CMAKE_SOURCE_DIR}/3rdparty/lib/x86_64-linux-gnu/libndi.so
 )
 
+add_executable(alsa_ndi_send
+  src/alsa_ndi_send.cpp
+)
+
+target_link_libraries(alsa_ndi_send
+  libasound.so
+  ${CMAKE_SOURCE_DIR}/3rdparty/lib/x86_64-linux-gnu/libndi.so
+)
+
 
 add_executable(ndi_video_recv
   src/ndi_video_recv.cpp

@@ -18,8 +18,150 @@
 
 #include <Processing.NDI.Advanced.h>
 
+// ALSA
+#include <alsa/asoundlib.h>
+
+static int i;
+static int err;
+static char *buffer;
+static int buffer_frames = 128;
+static unsigned int rate = 48000;
+static unsigned int channel = 2;
+static snd_pcm_t *handle;
+static snd_pcm_hw_params_t *hw_params;
+static snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
+static snd_pcm_uframes_t frames = 2;   // frames per period
+static unsigned int periods_per_buffer = 2;
+
 static std::atomic<bool> exit_loop(false);
 static void sigint_handler(int) { exit_loop = true; }
+
+static bool enable_playback = false;
+
+
+int init_device(char* argv[], snd_pcm_stream_t stream_t)
+{
+  /* Open PCM. The last parameter of this function is the mode. */
+  /* If this is set to 0, the standard mode is used. Possible   */
+  /* other values are SND_PCM_NONBLOCK and SND_PCM_ASYNC.       */
+  /* If SND_PCM_NONBLOCK is used, read / write access to the    */
+  /* PCM device will return immediately. If SND_PCM_ASYNC is    */
+  /* specified, SIGIO will be emitted whenever a period has     */
+  /* been completely processed by the soundcard.                */
+  if ((err = snd_pcm_open (&handle, argv[1], SND_PCM_STREAM_CAPTURE, 0)) < 0) {
+    fprintf (stderr, "cannot open audio device %s (%s)\n", 
+             argv[1],
+             snd_strerror (err));
+    exit (1);
+  }
+
+  fprintf(stdout, "audio interface opened\n");
+		   
+  snd_pcm_hw_params_alloca (&hw_params);
+
+  fprintf(stdout, "hw_params allocated\n");
+				 
+  /* Before we can write PCM data to the soundcard, we have to specify 
+  access type, sample format, sample rate, number of channels, number 
+  of periods and period size. First, we initialize the hwparams structure 
+  with the full configuration space of the soundcard. */
+  if ((err = snd_pcm_hw_params_any (handle, hw_params)) < 0) {
+    fprintf (stderr, "cannot initialize hardware parameter structure (%s)\n",
+             snd_strerror (err));
+    exit (1);
+  }
+
+  fprintf(stdout, "hw_params initialized\n");
+	
+  if ((err = snd_pcm_hw_params_set_access (handle, hw_params, SND_PCM_ACCESS_RW_INTERLEAVED)) < 0) {
+    fprintf (stderr, "cannot set access type (%s)\n",
+             snd_strerror (err));
+    exit (1);
+  }
+
+  fprintf(stdout, "hw_params access set to MMAP Interleaved\n");
+	
+  if ((err = snd_pcm_hw_params_set_format (handle, hw_params, format)) < 0) {
+    fprintf (stderr, "cannot set sample format (%s)\n",
+             snd_strerror (err));
+    exit (1);
+  }
+
+  fprintf(stdout, "hw_params format setted\n");
+	
+  if ((err = snd_pcm_hw_params_set_rate_near (handle, hw_params, &rate, 0)) < 0) {
+    fprintf (stderr, "cannot set sample rate (%s)\n",
+             snd_strerror (err));
+    exit (1);
+  }
+
+	
+  fprintf(stdout, "hw_params rate setted\n");
+
+  if ((err = snd_pcm_hw_params_set_channels (handle, hw_params, channel)) < 0) {
+    fprintf (stderr, "cannot set channel count (%s)\n",
+             snd_strerror (err));
+    exit (1);
+  }
+
+	int dir;
+  if ((err = snd_pcm_hw_params_set_period_size_near(handle, hw_params, &frames, &dir)) < 0)
+	{
+		fprintf (stderr, "cannot set period size (%s)\n",
+             snd_strerror (err));
+    exit (1);
+	};
+
+  fprintf(stdout, "hw_params channels setted\n");
+	
+  if ((err = snd_pcm_hw_params (handle, hw_params)) < 0) {
+    fprintf (stderr, "cannot set parameters (%s)\n",
+             snd_strerror (err));
+    exit (1);
+  }
+  fprintf(stdout, "hw_params setted\n");
+
+	/* Use a buffer large enough to hold one period */
+	snd_pcm_uframes_t actual_frames;
+  snd_pcm_hw_params_get_period_size(hw_params, &actual_frames, &dir);
+  snd_pcm_uframes_t period_size = actual_frames * 4; /* 2 bytes/sample, 2 channels */
+	printf("Actual period size: %lu \n", period_size);
+
+  // have a buffer with 2 periods
+  buffer = (char *) malloc(period_size * periods_per_buffer);
+
+	// latency is then calculated by 
+	// bytes_of_buffer / (sample_rate * bytes_per_frame)
+	// The sample rate will always be the same as the frame rate for PCM
+	// https://stackoverflow.com/a/19589884
+	printf("Buffer size: %lu\n", period_size * periods_per_buffer);
+
+	snd_pcm_uframes_t req_buff_size = period_size * periods_per_buffer;
+	if (snd_pcm_hw_params_set_buffer_size_near(handle, hw_params, &req_buff_size) < 0) {
+		fprintf(stderr, "Error setting buffersize.\n");
+		return(-1);
+	}
+	snd_pcm_uframes_t val;
+  snd_pcm_hw_params_get_buffer_size(hw_params, &val);
+	printf("Actual buffer size is %lu\n", val);
+
+	unsigned int time;
+	snd_pcm_hw_params_get_buffer_time(hw_params, &time, &dir);
+	printf("Buffer time: %u\n", time);
+
+	float latency = val/ float(rate * 4);
+	printf("The estimated latency with current setting is: %.2fms\n", 1000*latency);
+
+  if ((err = snd_pcm_prepare (handle)) < 0) {
+    fprintf (stderr, "cannot prepare audio interface for use (%s)\n",
+             snd_strerror (err));
+    exit (1);
+  }
+
+  fprintf(stdout, "audio interface prepared\n");
+	return 0;
+
+}
 
 int main(int argc, char* argv[])
 {
@@ -30,13 +172,16 @@ int main(int argc, char* argv[])
 		printf("Cannot run NDI.");
 		return 0;
 	}
+	snd_pcm_t *c_handle;
+	init_device(argv, SND_PCM_STREAM_CAPTURE);
+	printf("Device initiated\n");
 
 	// Catch interrupt so that we can shut down gracefully
 	signal(SIGINT, sigint_handler);
 
 	// Create an NDI source that is called "My 16bpp Audio" and is clocked to the audio.
 	NDIlib_send_create_t NDI_send_create_desc;
-	NDI_send_create_desc.p_ndi_name = "My 16bpp Audio";
+	NDI_send_create_desc.p_ndi_name = "16bpp Audio";
 	NDI_send_create_desc.clock_audio = true;
 
 	// We create the NDI finder
@@ -46,24 +191,33 @@ int main(int argc, char* argv[])
 
 	// We are going to send 1920 audio samples at a time
 	NDIlib_audio_frame_interleaved_16s_t NDI_audio_frame;
-	NDI_audio_frame.sample_rate = 48000;
-	NDI_audio_frame.no_channels = 2;
-	NDI_audio_frame.no_samples = 1920;
-	NDI_audio_frame.p_data = (short*)malloc(1920 * 2 * sizeof(short));
+	NDI_audio_frame.sample_rate = rate;
+	NDI_audio_frame.no_channels = channel;
+	NDI_audio_frame.no_samples = frames ;
+	NDI_audio_frame.reference_level = 0;
+	// NDI_audio_frame.p_data = (short*)malloc(1920 * 2 * sizeof(short));
 
-	// We will send 1000 frames of video. 
-	for (int idx = 0; !exit_loop && idx < 1000; idx++) {
-		// Fill in the buffer with silence. It is likely that you would do something much smarter than this.
-		memset(NDI_audio_frame.p_data, 0, NDI_audio_frame.no_samples * NDI_audio_frame.no_channels * sizeof(short));
-
-		// We now submit the frame. Note that this call will be clocked so that we end up submitting 
-		// at exactly 48kHz
+	int rc;
+  while (!exit_loop) {
+    rc = snd_pcm_readi(handle, buffer, frames);
+    if (rc == -EPIPE) {
+      /* EPIPE means overrun */
+      fprintf(stderr, "overrun occurred\n");
+      snd_pcm_prepare(handle);
+    } else if (rc < 0) {
+      fprintf(stderr,
+              "error from read: %s\n",
+              snd_strerror(rc));
+    } else if (rc != (int)frames) {
+      fprintf(stderr, "short read, read %d frames\n", rc);
+    }
+		NDI_audio_frame.p_data = (int16_t*)buffer;
 		NDIlib_util_send_send_audio_interleaved_16s(pNDI_send, &NDI_audio_frame);
 
-		// Just display something helpful
-		printf("Frame number %d sent.\n", idx);
-	}
+  }
 
+	snd_pcm_drain(handle);
+  snd_pcm_close(handle);
 	// Free the video frame
 	free(NDI_audio_frame.p_data);
 
