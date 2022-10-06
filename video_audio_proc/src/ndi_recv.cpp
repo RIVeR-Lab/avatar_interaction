@@ -36,9 +36,7 @@ static void draw_YUV(void *buffer)
 	int pitch = width*2;
 	// SDL_LockTexture(texture, NULL, &buffer_start, &pitch);
 	// SDL_UnlockTexture(texture);
-	std::cout << "in draw YUV" << std::endl;
 	SDL_UpdateTexture(texture, NULL, buffer, pitch);
-	std::cout << "updated texture" << std::endl;
 	SDL_RenderClear(renderer);
 	SDL_RenderCopy(renderer, texture, NULL, NULL);
 	SDL_RenderPresent(renderer);
@@ -181,7 +179,7 @@ int main(int argc, char* argv[])
 	// The descriptors
 	static NDIlib_video_frame_v2_t video_frame;
 	static NDIlib_audio_frame_v2_t audio_frame;
-	video_frame.p_data = (uint8_t*)malloc(width * height * 4);
+	// video_frame.p_data = (uint8_t*)malloc(width * height * 4);
 	// memset(video_frame.p_data, 0, 4*width*height);
 
 	if (init_view() < 0)
@@ -206,13 +204,12 @@ int main(int argc, char* argv[])
 
 				// Video data
 			case NDIlib_frame_type_video:
-				printf("Video data received (%dx%d).\n", video_frame.xres, video_frame.yres);
+				// printf("Video data received (%dx%d).\n", video_frame.xres, video_frame.yres);
 				render(video_frame.p_data);
 				// Free buffer queue, necessary or the memory will keep accumulating
 				NDIlib_recv_free_video_v2(pNDI_recv, &video_frame);
 				
 				// output default video fourcc is UYVY
-				std::cout << count++ <<std::endl;
 				break;
 
 				// Audio data

@@ -173,6 +173,10 @@ static void get_pixelformat()
 	{
 		fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
 	}
+	else 
+	{
+		errno_exit("Unsupported format!");
+	}
 }
 
 static void open_device(char* dev_name)
@@ -396,31 +400,31 @@ static void mainloop(void)
 			if (event.type == SDL_QUIT)
 				return;
 		for (;;) {
-			// fd_set fds;
-			// struct timeval tv;
-			// int r;
+			fd_set fds;
+			struct timeval tv;
+			int r;
 
-			// // Wait for file descriptor to be ready to read
-			// FD_ZERO(&fds);
-			// FD_SET(fd, &fds);
+			// Wait for file descriptor to be ready to read
+			FD_ZERO(&fds);
+			FD_SET(fd, &fds);
 
-			// tv.tv_sec = 2;
-			// tv.tv_usec = 0;
+			tv.tv_sec = 2;
+			tv.tv_usec = 0;
 
-			// r = select(fd + 1, &fds, NULL, NULL, &tv);
-			// if (-1 == r)
-			// {
-			// 	if (EINTR == errno)
-			// 		continue;
+			r = select(fd + 1, &fds, NULL, NULL, &tv);
+			if (-1 == r)
+			{
+				if (EINTR == errno)
+					continue;
 
-			// 	errno_exit("select");
-			// }
+				errno_exit("select");
+			}
 
-			// if (0 == r)
-			// {
-			// 	fprintf(stderr, "select timeout\n");
-			// 	exit(EXIT_FAILURE);
-			// }
+			if (0 == r)
+			{
+				fprintf(stderr, "select timeout\n");
+				exit(EXIT_FAILURE);
+			}
 
 			time_point start = now;
 			if (read_frame())
