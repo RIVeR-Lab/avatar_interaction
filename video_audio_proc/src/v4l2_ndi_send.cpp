@@ -250,15 +250,16 @@ static void uninit_device(void)
 		errno_exit("munmap");
 }
 
-static int init_ndi()
+static int init_ndi(char* src_name)
 {
 	if (!NDIlib_initialize()) 
 		errno_exit("Failed to initialize NDIlib");
+  auto format = fmt.fmt.pix.pixelformat;
 	
 	NDIlib_send_create_t send_create_t;
 	send_create_t.clock_audio = false;
 	send_create_t.clock_video = false;
-	send_create_t.p_ndi_name  = "v4l_sdl";
+	send_create_t.p_ndi_name  = src_name;
 
 	pNDI_send = NDIlib_send_create(&send_create_t);
 	if (!pNDI_send) 
@@ -266,9 +267,19 @@ static int init_ndi()
 	
 	NDI_video_frame.xres = fmt.fmt.pix.width;
 	NDI_video_frame.yres = fmt.fmt.pix.height;
-	NDI_video_frame.FourCC = NDIlib_FourCC_type_NV12;
-	// NDI_video_frame.p_data = (uint8_t*)malloc(NDI_video_frame.xres * NDI_video_frame.yres * 3/2);
-	NDI_video_frame.p_data = (uint8_t*)buffer_start;
+
+	switch (format) {
+		case V4L2_PIX_FMT_NV12:
+			NDI_video_frame.FourCC = NDIlib_FourCC_type_NV12;
+			// NDI_video_frame.p_data = (uint8_t*)malloc(NDI_video_frame.xres * NDI_video_frame.yres * 3/2);
+			NDI_video_frame.p_data = (uint8_t *)buffer_start;
+			break;
+		//TODO: Add support for MJPEG here:
+		//case V4L2_PIX_FMT_MJPEG:
+		default:
+			errno_exit("Unspported format for NDI\n");
+	}
+
 	return 0;
 }
 
@@ -458,27 +469,31 @@ static void close_view()
 
 static int help(char *prog_name)
 {
-	printf("Usage: %s [-d dev_name]\n", prog_name);
+	printf("Usage: %s [-d dev_name -o source_name]\n", prog_name);
 	return 0;
 }
 
 int main(int argc, char **argv)
 {
 	int opt;
-	while ((opt = getopt(argc, argv, "hd:")) != -1)
+	char* source_name = nullptr;
+	while ((opt = getopt(argc, argv, "hd:o:")) != -1)
 	{
 		switch (opt) {
 			case 'd':
 				dev_name = optarg;
 				break;
-
+			case 'o':
+				source_name = optarg;
+				break;
 			case 'h':
 				return help(argv[0]);
 		}
 	}
 
-	if (argc == 1){
-		printf("Capturing from default device: %s\n", dev_name);
+	if (argc != 5){
+		help(argv[0]);
+		exit(-1);
 	}
 	open_device(dev_name);
 	init_device();
@@ -488,7 +503,8 @@ int main(int argc, char **argv)
 		return -1;
 	}		
 
-	if (init_ndi()) {
+
+	if (init_ndi(source_name)) {
 		// Destroy the NDI sender
 		NDIlib_send_destroy(pNDI_send);
 		// Not required, but nice
