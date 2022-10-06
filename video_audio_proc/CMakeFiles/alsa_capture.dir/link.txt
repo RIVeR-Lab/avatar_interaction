@@ -1,1 +1,0 @@
-/usr/bin/cc   -rdynamic CMakeFiles/alsa_capture.dir/src/alsa_capture.c.o  -o alsa_capture  -lasound 

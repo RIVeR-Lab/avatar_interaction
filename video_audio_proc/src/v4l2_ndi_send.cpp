@@ -477,6 +477,12 @@ int main(int argc, char **argv)
 {
 	int opt;
 	char* source_name = nullptr;
+
+	if (argc != 5){
+		help(argv[0]);
+		exit(-1);
+	}
+
 	while ((opt = getopt(argc, argv, "hd:o:")) != -1)
 	{
 		switch (opt) {
@@ -491,10 +497,6 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (argc != 5){
-		help(argv[0]);
-		exit(-1);
-	}
 	open_device(dev_name);
 	init_device();
 

@@ -1,7 +1,0 @@
-/home/rui/avatar_ws/src/avatar_interaction/video_audio_proc/CMakeFiles/edit_cache.dir
-/home/rui/avatar_ws/src/avatar_interaction/video_audio_proc/CMakeFiles/rebuild_cache.dir
-/home/rui/avatar_ws/src/avatar_interaction/video_audio_proc/CMakeFiles/alsa_capture.dir
-/home/rui/avatar_ws/src/avatar_interaction/video_audio_proc/CMakeFiles/audio_playback.dir
-/home/rui/avatar_ws/src/avatar_interaction/video_audio_proc/CMakeFiles/ndi_video_recv.dir
-/home/rui/avatar_ws/src/avatar_interaction/video_audio_proc/CMakeFiles/audio_capture.dir
-/home/rui/avatar_ws/src/avatar_interaction/video_audio_proc/CMakeFiles/v4l2_ndi_send.dir

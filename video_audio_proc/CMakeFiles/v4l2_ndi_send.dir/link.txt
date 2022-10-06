@@ -1,1 +1,0 @@
-/usr/bin/c++    -rdynamic CMakeFiles/v4l2_ndi_send.dir/src/v4l2_ndi_send.cpp.o  -o v4l2_ndi_send  -Wl,-rpath,/home/rui/avatar_ws/src/avatar_interaction/video_audio_proc/3rdparty/lib/x86_64-linux-gnu -lSDL2 -lSDL2_image 3rdparty/lib/x86_64-linux-gnu/libndi.so 

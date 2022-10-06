@@ -8,6 +8,8 @@
 #include <string>
 #include <iostream>
 #include <csignal>
+#include <unistd.h>
+#include <stdio.h>
 
 
 
@@ -140,8 +142,30 @@ static int render(void* buffer)
 	return 0;
 }
 
+static int help(char *prog_name)
+{
+	printf("Usage: %s [-i source_name]\n", prog_name);
+	return 0;
+}
+
 int main(int argc, char* argv[])
 {
+	int opt;
+	char* source_name = nullptr;
+
+	while ((opt = getopt(argc, argv, "hi:")) != -1)
+	{
+		switch (opt) {
+			case 'i':
+				source_name = optarg;
+				break;
+			case 'h':
+				return help(argv[0]);
+				break;
+		}
+	}
+
+	
 	signal(SIGINT, sighandler);
   	// Not required, but "correct" (see the SDK documentation).
 	if (!NDIlib_initialize())
@@ -152,27 +176,58 @@ int main(int argc, char* argv[])
 	if (!pNDI_find)
 		return 0;
 
-	// Wait until there is one source
-	uint32_t no_sources = 0;
-	const NDIlib_source_t* p_sources = NULL;
-	while (!no_sources) {
-		// Wait until the sources on the network have changed
-		printf("Looking for sources ...\n");
-		NDIlib_find_wait_for_sources(pNDI_find, 1000/* One second */);
-		p_sources = NDIlib_find_get_current_sources(pNDI_find, &no_sources);
-		printf("current source name: %s\n", p_sources->p_ndi_name);
-	}
-
 	// We now have at least one source, so we create a receiver to look at it.
-	NDIlib_recv_create_v3_t recv_param;
-	recv_param.color_format = NDIlib_recv_color_format_fastest;
-	NDIlib_recv_instance_t pNDI_recv = NDIlib_recv_create_v3(&recv_param);
-
+	NDIlib_recv_create_v3_t create_settings;
+	create_settings.color_format = NDIlib_recv_color_format_fastest;
+	create_settings.bandwidth = NDIlib_recv_bandwidth_highest;
+	if (argc == 1) 
+	{
+		// number of sources found
+		uint32_t no_sources = 0;
+		const NDIlib_source_t *p_sources = NULL;
+		// Wait until there is one source
+		while (!no_sources)
+		{
+			// Wait until the sources on the network have changed
+			printf("Receiving from first device found by NDI finder\n");
+			printf("Looking for sources ...\n");
+			NDIlib_find_wait_for_sources(pNDI_find, 1000 /* One second */);
+			p_sources = NDIlib_find_get_current_sources(pNDI_find, &no_sources);
+			create_settings.source_to_connect_to.p_ndi_name = p_sources->p_ndi_name;
+			printf("current source name: %s\n", p_sources->p_ndi_name);
+		}
+	}
+	else 
+	{
+		// number of sources found
+		uint32_t no_sources = 0;
+		bool source_found = false;
+		const NDIlib_source_t *p_sources = NULL;
+		// Wait until there is one source
+		while (!source_found)
+		{
+			// Wait until the sources on the network have changed
+			printf("Looking for source: %s\n", source_name);
+			NDIlib_find_wait_for_sources(pNDI_find, 1000 /* One second */);
+			p_sources = NDIlib_find_get_current_sources(pNDI_find, &no_sources);
+			for (int i = 0; i < no_sources; i++)
+			{
+				if (std::string(p_sources[i].p_ndi_name).find(source_name) != std::string::npos)
+				{
+					create_settings.source_to_connect_to.p_ndi_name = p_sources[i].p_ndi_name;
+					printf("current source name: %s\n", create_settings.source_to_connect_to.p_ndi_name);
+					source_found = true;
+				}
+			}
+		}
+	}
+	NDIlib_recv_instance_t pNDI_recv = NDIlib_recv_create_v3(&create_settings);
 	if (!pNDI_recv)
+	{
+		printf("Can't create receiver");
 		return 0;
-
+	}
 	// Connect to our sources
-	NDIlib_recv_connect(pNDI_recv, p_sources + 0);
 
 	// Destroy the NDI finder. We needed to have access to the pointers to p_sources[0]
 	NDIlib_find_destroy(pNDI_find);
