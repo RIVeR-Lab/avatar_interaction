@@ -21,16 +21,14 @@
 // ALSA
 #include <alsa/asoundlib.h>
 
-static int i;
 static int err;
 static char *buffer;
-static int buffer_frames = 128;
 static unsigned int rate = 48000;
 static unsigned int channel = 2;
 static snd_pcm_t *handle;
 static snd_pcm_hw_params_t *hw_params;
 static snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
-static snd_pcm_uframes_t frames = 2;   // frames per period
+static snd_pcm_uframes_t frames = 1024;   // frames per period
 static unsigned int periods_per_buffer = 2;
 
 static std::atomic<bool> exit_loop(false);
@@ -39,7 +37,7 @@ static void sigint_handler(int) { exit_loop = true; }
 static bool enable_playback = false;
 
 
-int init_device(char* argv[], snd_pcm_stream_t stream_t)
+int init_device(char* snd, snd_pcm_stream_t stream_t)
 {
   /* Open PCM. The last parameter of this function is the mode. */
   /* If this is set to 0, the standard mode is used. Possible   */
@@ -48,11 +46,11 @@ int init_device(char* argv[], snd_pcm_stream_t stream_t)
   /* PCM device will return immediately. If SND_PCM_ASYNC is    */
   /* specified, SIGIO will be emitted whenever a period has     */
   /* been completely processed by the soundcard.                */
-  if ((err = snd_pcm_open (&handle, argv[1], SND_PCM_STREAM_CAPTURE, 0)) < 0) {
-    fprintf (stderr, "cannot open audio device %s (%s)\n", 
-             argv[1],
-             snd_strerror (err));
-    exit (1);
+  if ((err = snd_pcm_open (&handle, snd, stream_t, 0)) < 0) {
+		fprintf(stderr, "cannot open audio device %s (%s)\n",
+						snd,
+						snd_strerror(err));
+		exit (1);
   }
 
   fprintf(stdout, "audio interface opened\n");
@@ -111,6 +109,7 @@ int init_device(char* argv[], snd_pcm_stream_t stream_t)
              snd_strerror (err));
     exit (1);
 	};
+	printf("Set frame size to: %lu\n", frames);
 
   fprintf(stdout, "hw_params channels setted\n");
 	
@@ -122,9 +121,7 @@ int init_device(char* argv[], snd_pcm_stream_t stream_t)
   fprintf(stdout, "hw_params setted\n");
 
 	/* Use a buffer large enough to hold one period */
-	snd_pcm_uframes_t actual_frames;
-  snd_pcm_hw_params_get_period_size(hw_params, &actual_frames, &dir);
-  snd_pcm_uframes_t period_size = actual_frames * 4; /* 2 bytes/sample, 2 channels */
+  snd_pcm_uframes_t period_size = frames * 4; /* 2 bytes/sample, 2 channels */
 	printf("Actual period size: %lu \n", period_size);
 
   // have a buffer with 2 periods
@@ -141,15 +138,13 @@ int init_device(char* argv[], snd_pcm_stream_t stream_t)
 		fprintf(stderr, "Error setting buffersize.\n");
 		return(-1);
 	}
-	snd_pcm_uframes_t val;
-  snd_pcm_hw_params_get_buffer_size(hw_params, &val);
-	printf("Actual buffer size is %lu\n", val);
+	printf("Actual buffer size is %lu\n", req_buff_size);
 
 	unsigned int time;
 	snd_pcm_hw_params_get_buffer_time(hw_params, &time, &dir);
 	printf("Buffer time: %u\n", time);
 
-	float latency = val/ float(rate * 4);
+	float latency = req_buff_size/ float(rate * 4);
 	printf("The estimated latency with current setting is: %.2fms\n", 1000*latency);
 
   if ((err = snd_pcm_prepare (handle)) < 0) {
@@ -172,9 +167,9 @@ int main(int argc, char* argv[])
 		printf("Cannot run NDI.");
 		return 0;
 	}
-	snd_pcm_t *c_handle;
-	init_device(argv, SND_PCM_STREAM_CAPTURE);
-	printf("Device initiated\n");
+	assert( argc == 2);
+	init_device(argv[1], SND_PCM_STREAM_CAPTURE);
+	printf("Audio device initiated\n");
 
 	// Catch interrupt so that we can shut down gracefully
 	signal(SIGINT, sigint_handler);
