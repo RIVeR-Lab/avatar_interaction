@@ -1,16 +1,17 @@
 # The set of languages for which implicit dependencies are needed:
 set(CMAKE_DEPENDS_LANGUAGES
-  "CXX"
+  "C"
   )
 # The set of files for implicit dependencies of each language:
-set(CMAKE_DEPENDS_CHECK_CXX
-  "/home/rui/avatar_ws/src/avatar_interaction/video_audio_proc/src/v4l_sdl.cpp" "/home/rui/avatar_ws/src/avatar_interaction/video_audio_proc/src/CMakeFiles/v4l_sdl_stream.dir/v4l_sdl.cpp.o"
+set(CMAKE_DEPENDS_CHECK_C
+  "/home/rui/avatar_ws/src/avatar_interaction/video_audio_proc/src/audio_capture.c" "/home/rui/avatar_ws/src/avatar_interaction/video_audio_proc/CMakeFiles/audio_capture.dir/src/audio_capture.c.o"
   )
-set(CMAKE_CXX_COMPILER_ID "GNU")
+set(CMAKE_C_COMPILER_ID "GNU")
 
 # The include file search paths:
-set(CMAKE_CXX_TARGET_INCLUDE_PATH
-  "../3rdparty/include"
+set(CMAKE_C_TARGET_INCLUDE_PATH
+  "include"
+  "3rdparty/include"
   "/usr/include/SDL2"
   )
 

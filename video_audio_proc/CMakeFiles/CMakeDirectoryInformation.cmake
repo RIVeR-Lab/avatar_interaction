@@ -3,7 +3,7 @@
 
 # Relative path conversion top directories.
 set(CMAKE_RELATIVE_PATH_TOP_SOURCE "/home/rui/avatar_ws/src/avatar_interaction/video_audio_proc")
-set(CMAKE_RELATIVE_PATH_TOP_BINARY "/home/rui/avatar_ws/src/avatar_interaction/video_audio_proc/src")
+set(CMAKE_RELATIVE_PATH_TOP_BINARY "/home/rui/avatar_ws/src/avatar_interaction/video_audio_proc")
 
 # Force unix paths in dependencies.
 set(CMAKE_FORCE_UNIX_PATHS 1)

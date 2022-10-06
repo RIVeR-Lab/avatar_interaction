@@ -1,3 +1,0 @@
-/home/rui/avatar_ws/src/avatar_interaction/video_audio_proc/src/CMakeFiles/edit_cache.dir
-/home/rui/avatar_ws/src/avatar_interaction/video_audio_proc/src/CMakeFiles/rebuild_cache.dir
-/home/rui/avatar_ws/src/avatar_interaction/video_audio_proc/src/CMakeFiles/v4l_sdl_stream.dir

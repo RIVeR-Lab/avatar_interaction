@@ -1,0 +1,1 @@
+/usr/bin/cc   -rdynamic CMakeFiles/audio_capture.dir/src/audio_capture.c.o  -o audio_capture  -lasound 

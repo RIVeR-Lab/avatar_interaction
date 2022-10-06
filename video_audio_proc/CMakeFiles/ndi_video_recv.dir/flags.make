@@ -6,5 +6,5 @@ CXX_FLAGS =   -std=c++11 -O2 -Wall
 
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/home/rui/avatar_ws/src/avatar_interaction/video_audio_proc/3rdparty/include -I/usr/include/SDL2 
+CXX_INCLUDES = -I/home/rui/avatar_ws/src/avatar_interaction/video_audio_proc/include -I/home/rui/avatar_ws/src/avatar_interaction/video_audio_proc/3rdparty/include -I/usr/include/SDL2 
 
