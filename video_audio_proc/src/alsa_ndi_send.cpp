@@ -28,7 +28,7 @@ static unsigned int channel = 2;
 static snd_pcm_t *handle;
 static snd_pcm_hw_params_t *hw_params;
 static snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
-static snd_pcm_uframes_t frames = 1024;   // frames per period
+static snd_pcm_uframes_t frames = 500;   // frames per period
 static unsigned int periods_per_buffer = 2;
 
 static std::atomic<bool> exit_loop(false);
@@ -102,6 +102,8 @@ int init_device(char* snd, snd_pcm_stream_t stream_t)
     exit (1);
   }
 
+	fprintf(stdout, "hw_params channels setted\n");
+
 	int dir;
   if ((err = snd_pcm_hw_params_set_period_size_near(handle, hw_params, &frames, &dir)) < 0)
 	{
@@ -110,15 +112,6 @@ int init_device(char* snd, snd_pcm_stream_t stream_t)
     exit (1);
 	};
 	printf("Set frame size to: %lu\n", frames);
-
-  fprintf(stdout, "hw_params channels setted\n");
-	
-  if ((err = snd_pcm_hw_params (handle, hw_params)) < 0) {
-    fprintf (stderr, "cannot set parameters (%s)\n",
-             snd_strerror (err));
-    exit (1);
-  }
-  fprintf(stdout, "hw_params setted\n");
 
 	/* Use a buffer large enough to hold one period */
   snd_pcm_uframes_t period_size = frames * 4; /* 2 bytes/sample, 2 channels */
@@ -140,13 +133,20 @@ int init_device(char* snd, snd_pcm_stream_t stream_t)
 	}
 	printf("Actual buffer size is %lu\n", req_buff_size);
 
+	
+  if ((err = snd_pcm_hw_params (handle, hw_params)) < 0) {
+    fprintf (stderr, "cannot set parameters (%s)\n",
+             snd_strerror (err));
+    exit (1);
+  }
+  fprintf(stdout, "hw_params setted\n");
+
 	unsigned int time;
 	snd_pcm_hw_params_get_buffer_time(hw_params, &time, &dir);
 	printf("Buffer time: %u\n", time);
 
 	float latency = req_buff_size/ float(rate * 4);
 	printf("The estimated latency with current setting is: %.2fms\n", 1000*latency);
-
   if ((err = snd_pcm_prepare (handle)) < 0) {
     fprintf (stderr, "cannot prepare audio interface for use (%s)\n",
              snd_strerror (err));

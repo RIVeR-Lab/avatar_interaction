@@ -274,12 +274,15 @@ static int init_ndi(char* src_name)
 			// NDI_video_frame.p_data = (uint8_t*)malloc(NDI_video_frame.xres * NDI_video_frame.yres * 3/2);
 			NDI_video_frame.p_data = (uint8_t *)buffer_start;
 			break;
+		case V4L2_PIX_FMT_YUYV:
+			NDI_video_frame.FourCC = NDIlib_FourCC_type_UYVY;
+			NDI_video_frame.p_data = (uint8_t *)buffer_start;
+			break;
 		//TODO: Add support for MJPEG here:
 		//case V4L2_PIX_FMT_MJPEG:
 		default:
 			errno_exit("Unspported format for NDI\n");
 	}
-
 	return 0;
 }
 

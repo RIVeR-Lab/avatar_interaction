@@ -3,6 +3,7 @@ project(video_audio_proc C CXX)
 
 add_compile_options(-std=c++11 -O2 -Wall)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
+set(CMAKE_BUILD_TYPE Release)
 
 find_package(SDL2 REQUIRED)
 find_package(SDL2_image REQUIRED)
@@ -40,6 +41,7 @@ add_executable(ndi_recv
 )
 
 target_link_libraries(ndi_recv
+  libasound.so
   ${SDL2_LIBRARIES}
   ${SDL2_IMAGE_LIBRARIES}
   ${CMAKE_SOURCE_DIR}/3rdparty/lib/x86_64-linux-gnu/libndi.so
