@@ -22,8 +22,6 @@ static SDL_Renderer *renderer = NULL;
 static SDL_Texture *texture = NULL;
 static unsigned int width = 1920;
 static unsigned int height = 1080;
-std::string pixelformat = "UYVY";
-static int length = 0;
 bool view_inited = false;
 
 // Audio config
@@ -53,31 +51,28 @@ void sighandler(int signum) {
 	errno_exit("SIGINT received");
 }
 
-static void draw_YUV(void *buffer)
+static void draw_YUV(uint8_t *buffer)
 {
-	// YUYV is two bytes per pixel, so multiple line width by 2
-	int pitch = width*2;
-	// SDL_LockTexture(texture, NULL, &buffer_start, &pitch);
-	// SDL_UnlockTexture(texture);
+	int pitch = 2*width;
+	// SDL_UpdateYUVTexture(texture,
+	// 										 NULL,
+	// 										 buffer, width,
+	// 										 buffer , width / 2,
+	// 										 buffer, width / 2);
 	SDL_UpdateTexture(texture, NULL, buffer, pitch);
 	SDL_RenderClear(renderer);
 	SDL_RenderCopy(renderer, texture, NULL, NULL);
 	SDL_RenderPresent(renderer);
 }
 
-static void draw_MJPEG(void *buffer)
+static void draw_BGRA(void *buffer)
 {
-	SDL_RWops *buf_stream = SDL_RWFromMem(buffer, (int)length);
-	SDL_Surface *frame = IMG_Load_RW(buf_stream, 0);
-	SDL_Texture *tx = SDL_CreateTextureFromSurface(renderer, frame);
-
+	int pitch = width*4;
+	SDL_UpdateTexture(texture, NULL, buffer, pitch);
 	SDL_RenderClear(renderer);
-	SDL_RenderCopy(renderer, tx, NULL, NULL);
+	SDL_RenderCopy(renderer, texture, NULL, NULL);
 	SDL_RenderPresent(renderer);
 
-	SDL_DestroyTexture(tx);
-	SDL_FreeSurface(frame);
-	SDL_RWclose(buf_stream);
 }
 
 static void draw_NV12(void *buffer)
@@ -89,75 +84,73 @@ static void draw_NV12(void *buffer)
 	SDL_RenderPresent(renderer);
 }
 
-static int init_view()
+static int init_view(NDIlib_FourCC_type_e format)
 {
 	if (SDL_Init(SDL_INIT_VIDEO)) {
 		printf("Unable to initialize SDL\n");
 		return -1;
 	}
 
-	if (SDL_CreateWindowAndRenderer(width
-					, height
-					, SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL
-					, &window
-					, &renderer)) {
+	if (SDL_CreateWindowAndRenderer(width, height, SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL, &window, &renderer))
+	{
 		printf("SDL_CreateWindowAndRenderer failed: %s\n", SDL_GetError());
 		return -1;
 	}
 
-	if (pixelformat == "YUYV") {
-		texture = SDL_CreateTexture(renderer
-						// YUY2 is also know as YUYV in SDL
-						, SDL_PIXELFORMAT_YUY2
-						, SDL_TEXTUREACCESS_STREAMING
-						, width
-						, height);
-		if (!texture) {
-			printf("SDL_CreateTexture failed: %s\n", SDL_GetError());
-			return -1;
-		}
-	} else if (pixelformat == "MJPEG") {
-		if (!IMG_Init(IMG_INIT_JPG)) {
-			printf("Unable to initialize IMG\n");
-			return -1;
-		}
-	} 
-	else if (pixelformat == "NV12")
+	// TODO: Convert from NDI UYUV to YUYV
+	// if (pixelformat == "YUYV") {
+	// 	texture = SDL_CreateTexture(renderer
+	// 					// YUY2 is also know as YUYV in SDL
+	// 					, SDL_PIXELFORMAT_YUY2
+	// 					, SDL_TEXTUREACCESS_STREAMING
+	// 					, width
+	// 					, height);
+	// 	if (!texture) {
+	// 		printf("SDL_CreateTexture failed: %s\n", SDL_GetError());
+	// 		return -1;
+	// 	}
+	// }
+	
+	uint32_t render_fmt;
+	// if (format != NDIlib_FourCC_video_type_BGRA)
+	// {
+	// 	std::cout << format << std::endl;
+	// }
+	switch (format)
 	{
-		texture = SDL_CreateTexture(renderer,
-							SDL_PIXELFORMAT_NV12,
-							SDL_TEXTUREACCESS_STREAMING,
-							width,
-							height);
-		if (!texture) {
-			printf("SDL_CreateTexture failed: %s\n", SDL_GetError());
-			return -1;
-		}
+	case NDIlib_FourCC_video_type_BGRA:
+		render_fmt = SDL_PIXELFORMAT_BGRA8888;
+		break;
+	case NDIlib_FourCC_video_type_NV12:
+		render_fmt = SDL_PIXELFORMAT_NV12;
+		break;
+	case NDIlib_FourCC_video_type_UYVY:
+		render_fmt = SDL_PIXELFORMAT_UYVY;
+		break;
+	default:
+		return -1;
 	}
-	else if (pixelformat == "UYVY")
+	texture = SDL_CreateTexture(renderer,
+															render_fmt,
+															SDL_TEXTUREACCESS_STREAMING,
+															width,
+															height);
+	if (!texture)
 	{
-		texture = SDL_CreateTexture(
-			renderer,
-			SDL_PIXELFORMAT_UYVY,
-			SDL_TEXTUREACCESS_STREAMING,
-			width,
-			height
-		);
-		if (!texture) {
-			printf("SDL_CreateTexture failed: %s\n", SDL_GetError());
-			return -1;
-		}
+		printf("SDL_CreateTexture failed: %s\n", SDL_GetError());
+		return -1;
 	}
+	
 	return 0;
 }
 
-static int render(void* buffer)
+static int render(NDIlib_FourCC_type_e format, uint8_t* buffer)
 {
-	if (pixelformat == "YUV" || pixelformat == "UYVY")
+	if (format == NDIlib_FourCC_video_type_UYVY)
 		draw_YUV(buffer);
-	else if (pixelformat == "MJPEG")
-		draw_MJPEG(buffer);
-	else if (pixelformat == "NV12")
+	else if (format == NDIlib_FourCC_video_type_BGRA)
+		draw_BGRA(buffer);
+	else if (format == NDIlib_FourCC_video_type_NV12)
 		draw_NV12(buffer);
 
 	return 0;
@@ -390,9 +383,7 @@ int main(int argc, char* argv[])
 
 	SDL_Event event;
 	snd_pcm_sframes_t rc;
-	// Investigate into this to solve the underrun issue
-	// After this line the buffer will start taking frames, the buffer size seems to 65 frames,
-	// Don't know where is this configured.
+
 	NDIlib_recv_instance_t pNDI_recv = NDIlib_recv_create_v3(&create_settings);
 	if (!pNDI_recv)
 	{
@@ -403,6 +394,7 @@ int main(int argc, char* argv[])
 
 	NDIlib_recv_connect(pNDI_recv, &selected_source);
 	
+	// This sleep helps with underrun
 	// Don't know why but seems like one frame takes about buffertime/10000 from the sender side
 	// eg. buffertime from sender side is 83500, the latency is then 8.35ms / frame
 	std::this_thread::sleep_for(std::chrono::milliseconds(audio_buffer));
@@ -435,7 +427,7 @@ int main(int argc, char* argv[])
 			{
 				if (!view_inited)
 				{
-					if (init_view() < 0)
+					if (init_view(video_frame.FourCC) < 0)
 					{
 						errno_exit("Failed to initialize SDL window");
 					}
@@ -444,7 +436,7 @@ int main(int argc, char* argv[])
 				std::cout << "Total video frame: " << total_f.video_frames << std::endl;
 				std::cout << "Dropped video frame: " << drop_f.video_frames << std::endl;
 				// printf("Video data received (%dx%d).\n", video_frame.xres, video_frame.yres);
-				render(video_frame.p_data);
+				render(video_frame.FourCC, video_frame.p_data);
 				// Free buffer queue, necessary or the memory will keep accumulating
 				NDIlib_recv_free_video_v2(pNDI_recv, &video_frame);
 				

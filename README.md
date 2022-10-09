@@ -38,7 +38,7 @@ Avatar Audio Video Processing
     - [x] Solve underrun issue (solved by adding a delay on purpose)
     - [ ] Try capturing device with MMAP mode
 - [ ] NDI video processing
-    - [x] MJPEG format support (SO HARD!!!!) Switch to FFMPEG might be the option
+    - [x] MJPEG format support (SO HARD!!!!) Switch to FFMPEG might be the option. **HIGH CPU.**
     - [ ] Send audio along with video
     - [ ] How to generate 60fps video?? Maybe play with the buffer too?
     - [ ] YUYV format support

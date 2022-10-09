@@ -1,13 +1,23 @@
-cmake_minimum_required(VERSION 3.1.0)
+cmake_minimum_required(VERSION 3.12.0)
 project(video_audio_proc C CXX)
 
-add_compile_options(-std=c++11 -O2 -Wall)
+add_compile_options(-std=c++11 -o-O20 -Wall)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
-set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Debug)
 
 find_package(SDL2 REQUIRED)
 find_package(SDL2_image REQUIRED)
 find_package(Threads REQUIRED)
+
+#Find ffmpeg directories
+find_package(PkgConfig)
+if (PKG_CONFIG_FOUND)
+pkg_check_modules(_FFMPEG_AVFORMAT libavformat)
+pkg_check_modules(_FFMPEG_AVCODEC libavcodec)
+pkg_check_modules(_FFMPEG_AVUTIL libavutil)
+pkg_check_modules(_FFMPEG_SWSCALE libswscale)
+pkg_check_modules(_PC_X264 x264)
+endif (PKG_CONFIG_FOUND)
 
 include_directories(
   include
@@ -24,6 +34,10 @@ target_link_libraries(v4l2_ndi_send
   ${SDL2_LIBRARIES}
   ${SDL2_IMAGE_LIBRARIES}
   ${CMAKE_SOURCE_DIR}/3rdparty/lib/x86_64-linux-gnu/libndi.so
+  avformat
+  avcodec
+  avutil
+  swscale
 )
 
 add_executable(alsa_ndi_send
@@ -46,15 +60,6 @@ target_link_libraries(ndi_recv
   ${SDL2_IMAGE_LIBRARIES}
   ${CMAKE_SOURCE_DIR}/3rdparty/lib/x86_64-linux-gnu/libndi.so
 )
-
-# add_executable(ma
-#   src/audio_proc.cpp
-# )
-# target_link_libraries(audio_proc
-#   m
-#   pthread
-#   libdl.so
-# )
 
 add_executable(alsa_capture
   src/alsa_capture.c

@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <malloc.h>
+#include <math.h>
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
@@ -21,6 +22,19 @@
 
 // NDI headers
 #include <Processing.NDI.Advanced.h>
+
+/*-------------------FFMPEG--------------------*/
+extern "C" {
+	#include <libavformat/avformat.h>
+	#include <libavcodec/avcodec.h>
+	#include <libavutil/imgutils.h>
+	#include <libavutil/avutil.h>
+	#include <libswscale/swscale.h>
+}
+
+#define now        std::chrono::high_resolution_clock::now();
+using time_point = std::chrono::high_resolution_clock::time_point;
+using duration   = std::chrono::duration<double>;
 
 static char *dev_name = (char*)"/dev/video0";
 static int fd         = -1;
@@ -37,9 +51,12 @@ static NDIlib_video_frame_v2_t NDI_video_frame;
 static NDIlib_send_instance_t pNDI_send;
 static bool publish_ndi = true;
 
-#define now        std::chrono::high_resolution_clock::now();
-using time_point = std::chrono::high_resolution_clock::time_point;
-using duration   = std::chrono::duration<double>;
+static AVCodecContext *decoder_ctx;
+static AVCodec *pCodec;
+static AVPacket packet_in;
+static AVFrame *decoded_frame;
+static void *decoded_mjpeg_buf = NULL;
+
 
 static void errno_exit(const char *s) 
 {
@@ -51,7 +68,7 @@ static void draw_YUV()
 {
 	// YUYV is two bytes per pixel, so multiple line width by 2
 
-	int pitch = fmt.fmt.pix.width * 2;
+	int pitch = fmt.fmt.pix.width;
 	// SDL_LockTexture(texture, NULL, &buffer_start, &pitch);
 	// SDL_UnlockTexture(texture);
 	SDL_UpdateTexture(texture, NULL, buffer_start, pitch);
@@ -67,7 +84,6 @@ static void draw_MJPEG()
 	SDL_RWops *buf_stream = SDL_RWFromMem(buffer_start, (int)length);
 	SDL_Surface *frame = IMG_Load_RW(buf_stream, 0);
 	SDL_Texture *tx = SDL_CreateTextureFromSurface(renderer, frame);
-
 	SDL_RenderClear(renderer);
 	SDL_RenderCopy(renderer, tx, NULL, NULL);
 	SDL_RenderPresent(renderer);
@@ -75,6 +91,12 @@ static void draw_MJPEG()
 	SDL_DestroyTexture(tx);
 	SDL_FreeSurface(frame);
 	SDL_RWclose(buf_stream);
+	// int pitch = fmt.fmt.pix.width * 3 - 2;
+	// SDL_UpdateTexture(texture, NULL, decoded_mjpeg_buf, pitch);
+	// SDL_RenderClear(renderer);
+	// SDL_RenderCopy(renderer, texture, NULL, NULL);
+	// SDL_RenderPresent(renderer);;
+
 }
 
 static void draw_NV12()
@@ -86,12 +108,69 @@ static void draw_NV12()
 	SDL_RenderPresent(renderer);
 }
 
-static void send_NDI()
+static void send_NDI(unsigned int format)
 {
+	if (format == V4L2_PIX_FMT_NV12)
+	{
+	}
+	else if (format == V4L2_PIX_FMT_MJPEG)
+	{
+		time_point start = now;
+		// The decoded mjpeg will be in YUVJ422P format
+		// This is a 16bpp format, meaning each channel is expressed in 8bit, a pixel is expressed by a total of 16bit
+		// swscale solution
+		// uint8_t *p_image = (uint8_t *)decoded_mjpeg_buf;
+		// auto dst_fmt = AV_PIX_FMT_UYVY422;
+		//   struct SwsContext* conversion = sws_getContext(fmt_width,
+    //                                     fmt_height,
+		// 																		decoder_ctx->sw_pix_fmt,
+		// 																		fmt_width,
+    //                                     fmt_height,
+		// 																		dst_fmt,
+    //                                     SWS_FAST_BILINEAR | SWS_FULL_CHR_H_INT | SWS_ACCURATE_RND,
+    //                                     NULL,
+    //                                     NULL,
+    //                                     NULL);
+		// uint8_t ** dst_buff = &p_image;
+		// int dst_linesize[1] = {1920*2}; 
+	  // sws_scale(conversion, decoded_frame->data, decoded_frame->linesize, 0, fmt_height, dst_buff, dst_linesize);
+
+		// forloop solution, they take about the same time.
+		uint16_t *p_image = (uint16_t *)decoded_mjpeg_buf;
+		for (size_t i = 0; i < fmt_height; i++)
+		{
+			for (size_t j = 0; j < fmt_width; j++)
+			{
+				// U0 Y0 V0 Y1 packing
+				auto p_idx = j + i * fmt_width;
+				if (p_idx % 2 == 0)
+				{
+					auto uy = ((uint16_t)decoded_frame->data[0][p_idx] << 8) + decoded_frame->data[1][p_idx / 2];
+					p_image[p_idx] = uy;
+				}
+				else
+				{
+					auto uv = ((uint16_t)decoded_frame->data[0][p_idx] << 8) + decoded_frame->data[2][p_idx / 2];
+					p_image[p_idx] = uv;
+				}
+
+			}
+		}
+
+		NDI_video_frame.p_data = (uint8_t *)decoded_mjpeg_buf;
+		time_point end = now;
+		duration d = end - start;
+		std::cout << "Codec conversion time: " << d.count() << std::endl;
+	}
+	else
+	{
+		printf("Unsupported NDI format");
+		exit(-1);
+	}
 	time_point start = now;
 	// NDIlib_send_send_video_v2(pNDI_send, &NDI_video_frame);
 	NDIlib_send_send_video_async_v2(pNDI_send, &NDI_video_frame);
-	time_point end   = now;
+	time_point end = now;
 	duration d = end - start;
 	std::cout << "NDI processing time: " << d.count() << std::endl;
 }
@@ -267,6 +346,8 @@ static int init_ndi(char* src_name)
 	
 	NDI_video_frame.xres = fmt.fmt.pix.width;
 	NDI_video_frame.yres = fmt.fmt.pix.height;
+	NDI_video_frame.frame_rate_N = 60000;
+	NDI_video_frame.frame_rate_D = 1000;
 
 	switch (format) {
 		case V4L2_PIX_FMT_NV12:
@@ -274,12 +355,15 @@ static int init_ndi(char* src_name)
 			// NDI_video_frame.p_data = (uint8_t*)malloc(NDI_video_frame.xres * NDI_video_frame.yres * 3/2);
 			NDI_video_frame.p_data = (uint8_t *)buffer_start;
 			break;
-		case V4L2_PIX_FMT_YUYV:
+		// case V4L2_PIX_FMT_YUYV:
+		// 	NDI_video_frame.FourCC = NDIlib_FourCC_type_UYVY;
+		// 	NDI_video_frame.p_data = (uint8_t *)buffer_start;
+		// 	break;
+		case V4L2_PIX_FMT_MJPEG:
+			// somehow the ffmpeg decoder would decode this into YUVJ422P, assuming it's equivalent to P216
 			NDI_video_frame.FourCC = NDIlib_FourCC_type_UYVY;
-			NDI_video_frame.p_data = (uint8_t *)buffer_start;
+
 			break;
-		//TODO: Add support for MJPEG here:
-		//case V4L2_PIX_FMT_MJPEG:
 		default:
 			errno_exit("Unspported format for NDI\n");
 	}
@@ -318,6 +402,16 @@ static int init_view()
 			printf("Unable to initialize IMG\n");
 			return -1;
 		}
+		// 		texture = SDL_CreateTexture(renderer
+		// 				// YUY2 is also know as YUYV in SDL
+		// 				, SDL_PIXELFORMAT_IYUV
+		// 				, SDL_TEXTUREACCESS_STREAMING
+		// 				, fmt.fmt.pix.width
+		// 				, fmt.fmt.pix.height);
+		// if (!texture) {
+		// 	printf("SDL_CreateTexture failed: %s\n", SDL_GetError());
+		// 	return -1;
+		// }
 	} 
 	else if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_NV12)
 	{
@@ -389,12 +483,26 @@ static int read_frame()
 	if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_YUYV)
 		draw_YUV();
 	else if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_MJPEG)
+	{
 		draw_MJPEG();
+		packet_in.data = (uint8_t*)buffer_start;
+		packet_in.size = buf.length;
+		if(AVERROR(EAGAIN) == (avcodec_send_packet(decoder_ctx, &packet_in)))
+		{
+			fprintf(stderr,"Flushing input raw frames\n");
+			avcodec_flush_buffers(decoder_ctx);
+		}
+		if ((avcodec_receive_frame(decoder_ctx, decoded_frame)) == AVERROR(EAGAIN))
+		{
+			fprintf(stderr,"Flushing output raw frames\n");
+			avcodec_flush_buffers(decoder_ctx);
+		}
+	}
 	else if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_NV12)
 		draw_NV12();
 
 	if (publish_ndi) 
-		send_NDI();
+		send_NDI(fmt.fmt.pix.pixelformat);
 
 	buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	buf.memory = V4L2_MEMORY_MMAP;
@@ -404,6 +512,56 @@ static int read_frame()
 
 
 	return 1;
+}
+
+static void init_decoder(void)
+{
+	pCodec = avcodec_find_decoder(AV_CODEC_ID_MJPEG);
+	if(pCodec == NULL)
+	{
+		fprintf(stderr, "Unsupported codec\n");
+		exit(EXIT_FAILURE);
+	}
+	decoder_ctx = avcodec_alloc_context3(pCodec);
+	decoder_ctx->codec_id = AV_CODEC_ID_MJPEG;
+	decoder_ctx->flags = AV_CODEC_FLAG_LOW_DELAY;
+	decoder_ctx->width = fmt_width;
+	decoder_ctx->coded_width = fmt_width;
+	decoder_ctx->height = fmt_height;
+	decoder_ctx->coded_height = fmt_height;
+	// The decoder will override the format.
+	// For MJPEG the common decoded format is YUVJ422P
+	decoder_ctx->pix_fmt = AV_PIX_FMT_UYVY422;
+	decoder_ctx->framerate = AVRational{1,60};
+	decoder_ctx->thread_type = 2;
+	
+	av_init_packet(&packet_in);
+	//packet_in.buf = av_buffer_create(buffers->start, buffers->length, free_buffers, decoded_frame->opaque, AV_BUFFER_FLAG_READONLY);
+	if(packet_in.buf == NULL)
+	{
+		printf("Error starting AVBufferRef\n");
+		av_packet_unref(&packet_in);
+	}
+	
+	if(avcodec_open2(decoder_ctx, pCodec, NULL) < 0)
+	{
+		fprintf(stderr, "Error opening codec\n");
+		exit(EXIT_FAILURE);
+	}
+	
+	decoded_frame = av_frame_alloc();
+	if(decoded_frame == NULL)
+	{
+		fprintf(stderr, "Error allocating decoded data\n");
+		exit(EXIT_FAILURE);
+	}
+	decoded_frame->width = fmt_width;
+	decoded_frame->height = fmt_height;
+	decoded_frame->format = decoder_ctx->pix_fmt;
+
+	// Hardcoded buffer size for 1920x1080 decoded MJPEG frame. 
+	// height and width must be divisable by 16 or 32.
+	decoded_mjpeg_buf = malloc(fmt_width*fmt_height*sizeof(uint16_t));
 }
 
 static void mainloop(void)
@@ -507,7 +665,7 @@ int main(int argc, char **argv)
 		close_device();
 		return -1;
 	}		
-
+	init_decoder();
 
 	if (init_ndi(source_name)) {
 		// Destroy the NDI sender
@@ -529,5 +687,6 @@ int main(int argc, char **argv)
 	NDIlib_send_destroy(pNDI_send);
 	// Not required, but nice
 	NDIlib_destroy();
+	free(decoded_mjpeg_buf);
 	return 0;
 }
