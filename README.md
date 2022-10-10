@@ -3,33 +3,6 @@ The repository to hold all interaction related code for avatar
 
 A simple program to capture from webcam like device and render it in SDL.
 
-Inspired from https://github.com/marcosps/v4l2_webcam
-
-## Dependencies
-`source setup_env.sh`
-
-
-### Install libconfig
-`cd 3rdparty/`  
-`tar -xf libconfig-1.7.3.tar.gz`  
-`cd libconfig-1.7.3`  
-`./configure`  
-`make & sudo make install`  
-
-## Build (video streaming)
-
-1. `cd video_audio_proc && mkdir build && cd build`  
-2. `cmake .. && make`
-
-The commands will generate an executable `v4l_sdl_stream` in the `build` folder.
-
-## Usage
-[Sender] Run `v4l_sdl_stream -d [device-name]` or just `v4l_sdl_stream` to capture from the default device.
-
-
-[Receiver] Run `./ndi_recv`
-
-
 
 ## TODO
 Avatar Audio Video Processing
@@ -67,4 +40,5 @@ Receiver: ffplay  udp://127.0.0.1:23000 -fflags nobuffer
   https://stackoverflow.com/questions/47292785/recording-from-webcam-using-ffmpeg-at-high-framerate
 
 
+Inspired from https://github.com/marcosps/v4l2_webcam
 
