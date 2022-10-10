@@ -8,8 +8,12 @@ Inspired from https://github.com/marcosps/v4l2_webcam
 ## Dependencies
 `sudo apt install libsdl2-dev`
 
-
 `sudo apt install libsdl2-image-dev`
+
+### Install libconfig
+`cd 3rdparty/libconfig-1.7.3/`  
+`./configure`  
+`make & sudo make install`  
 
 ## Build (video streaming)
 
@@ -38,13 +42,15 @@ Avatar Audio Video Processing
     - [x] Solve underrun issue (solved by adding a delay on purpose)
     - [ ] Try capturing device with MMAP mode
 - [ ] NDI video processing
-    - [x] MJPEG format support (SO HARD!!!!) Switch to FFMPEG might be the option. **HIGH CPU.**
+    - [x] MJPEG format support (SO HARD!!!!) Switch to FFMPEG might be the option
     - [ ] Send audio along with video
     - [ ] How to generate 60fps video?? Maybe play with the buffer too?
     - [ ] YUYV format support
     - [ ] Crop 
     - [ ] Resolution
-- [ ] AV fine tunning
+- [ ] AV integration
+    - [ ] Integrate 3 mics, 3 cameras, 1 speaker on robot side
+    - [ ] Integrate 1 camera, 1 headphone on operator side
     - [ ] assess audio video desync
     - [ ] AEC implementation
 

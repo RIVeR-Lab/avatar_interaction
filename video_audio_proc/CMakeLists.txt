@@ -8,6 +8,7 @@ set(CMAKE_BUILD_TYPE Debug)
 find_package(SDL2 REQUIRED)
 find_package(SDL2_image REQUIRED)
 find_package(Threads REQUIRED)
+find_package(libconfig++ REQUIRED)
 
 #Find ffmpeg directories
 find_package(PkgConfig)
@@ -16,7 +17,7 @@ pkg_check_modules(_FFMPEG_AVFORMAT libavformat)
 pkg_check_modules(_FFMPEG_AVCODEC libavcodec)
 pkg_check_modules(_FFMPEG_AVUTIL libavutil)
 pkg_check_modules(_FFMPEG_SWSCALE libswscale)
-pkg_check_modules(_PC_X264 x264)
+# pkg_check_modules(_PC_X264 x264)
 endif (PKG_CONFIG_FOUND)
 
 include_directories(
@@ -33,6 +34,7 @@ add_executable(v4l2_ndi_send
 target_link_libraries(v4l2_ndi_send
   ${SDL2_LIBRARIES}
   ${SDL2_IMAGE_LIBRARIES}
+  ${LIBCONFIG++_LIBRARIES}
   ${CMAKE_SOURCE_DIR}/3rdparty/lib/x86_64-linux-gnu/libndi.so
   avformat
   avcodec

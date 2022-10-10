@@ -23,6 +23,9 @@
 // NDI headers
 #include <Processing.NDI.Advanced.h>
 
+// Config file parser
+#include <libconfig.h++>
+
 /*-------------------FFMPEG--------------------*/
 extern "C" {
 	#include <libavformat/avformat.h>
@@ -36,7 +39,8 @@ extern "C" {
 using time_point = std::chrono::high_resolution_clock::time_point;
 using duration   = std::chrono::duration<double>;
 
-static char *dev_name = (char*)"/dev/video0";
+static char dev_name[255] = "/dev/video0";
+static char output_name[255] = "test";
 static int fd         = -1;
 static SDL_Window *window = NULL;
 static SDL_Renderer *renderer = NULL;
@@ -110,7 +114,7 @@ static void draw_NV12()
 
 static void send_NDI(unsigned int format)
 {
-	if (format == V4L2_PIX_FMT_NV12)
+	if (format == V4L2_PIX_FMT_NV12 || format == V4L2_PIX_FMT_H264)
 	{
 	}
 	else if (format == V4L2_PIX_FMT_MJPEG)
@@ -119,43 +123,43 @@ static void send_NDI(unsigned int format)
 		// The decoded mjpeg will be in YUVJ422P format
 		// This is a 16bpp format, meaning each channel is expressed in 8bit, a pixel is expressed by a total of 16bit
 		// swscale solution
-		// uint8_t *p_image = (uint8_t *)decoded_mjpeg_buf;
-		// auto dst_fmt = AV_PIX_FMT_UYVY422;
-		//   struct SwsContext* conversion = sws_getContext(fmt_width,
-    //                                     fmt_height,
-		// 																		decoder_ctx->sw_pix_fmt,
-		// 																		fmt_width,
-    //                                     fmt_height,
-		// 																		dst_fmt,
-    //                                     SWS_FAST_BILINEAR | SWS_FULL_CHR_H_INT | SWS_ACCURATE_RND,
-    //                                     NULL,
-    //                                     NULL,
-    //                                     NULL);
-		// uint8_t ** dst_buff = &p_image;
-		// int dst_linesize[1] = {1920*2}; 
-	  // sws_scale(conversion, decoded_frame->data, decoded_frame->linesize, 0, fmt_height, dst_buff, dst_linesize);
+		uint8_t *p_image = (uint8_t *)decoded_mjpeg_buf;
+		auto dst_fmt = AV_PIX_FMT_UYVY422;
+		  struct SwsContext* conversion = sws_getContext(fmt_width,
+                                        fmt_height,
+																				decoder_ctx->sw_pix_fmt,
+																				fmt_width,
+                                        fmt_height,
+																				dst_fmt,
+                                        SWS_FAST_BILINEAR | SWS_FULL_CHR_H_INT | SWS_ACCURATE_RND,
+                                        NULL,
+                                        NULL,
+                                        NULL);
+		uint8_t ** dst_buff = &p_image;
+		int dst_linesize[1] = {fmt_width*2}; 
+	  sws_scale(conversion, decoded_frame->data, decoded_frame->linesize, 0, fmt_height, dst_buff, dst_linesize);
 
 		// forloop solution, they take about the same time.
-		uint16_t *p_image = (uint16_t *)decoded_mjpeg_buf;
-		for (size_t i = 0; i < fmt_height; i++)
-		{
-			for (size_t j = 0; j < fmt_width; j++)
-			{
-				// U0 Y0 V0 Y1 packing
-				auto p_idx = j + i * fmt_width;
-				if (p_idx % 2 == 0)
-				{
-					auto uy = ((uint16_t)decoded_frame->data[0][p_idx] << 8) + decoded_frame->data[1][p_idx / 2];
-					p_image[p_idx] = uy;
-				}
-				else
-				{
-					auto uv = ((uint16_t)decoded_frame->data[0][p_idx] << 8) + decoded_frame->data[2][p_idx / 2];
-					p_image[p_idx] = uv;
-				}
+		// uint16_t *p_image = (uint16_t *)decoded_mjpeg_buf;
+		// for (size_t i = 0; i < fmt_height; i++)
+		// {
+		// 	for (size_t j = 0; j < fmt_width; j++)
+		// 	{
+		// 		// U0 Y0 V0 Y1 packing
+		// 		auto p_idx = j + i * fmt_width;
+		// 		if (p_idx % 2 == 0)
+		// 		{
+		// 			auto uy = ((uint16_t)decoded_frame->data[0][p_idx] << 8) + decoded_frame->data[1][p_idx / 2];
+		// 			p_image[p_idx] = uy;
+		// 		}
+		// 		else
+		// 		{
+		// 			auto uv = ((uint16_t)decoded_frame->data[0][p_idx] << 8) + decoded_frame->data[2][p_idx / 2];
+		// 			p_image[p_idx] = uv;
+		// 		}
 
-			}
-		}
+		// 	}
+		// }
 
 		NDI_video_frame.p_data = (uint8_t *)decoded_mjpeg_buf;
 		time_point end = now;
@@ -232,6 +236,9 @@ static void get_pixelformat()
 			case V4L2_PIX_FMT_YUYV:
 				std::cout << "YUYV" << std::endl;
 				break;
+			case V4L2_PIX_FMT_H264:
+				std::cout << "H264" << std::endl;
+				break;
 			default:
 				std::cout << "Unsupported" << std::endl;
 				break;
@@ -252,13 +259,17 @@ static void get_pixelformat()
 	{
 		fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
 	}
+	else if ("H264" == format)
+	{
+		fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_H264;
+	}
 	else 
 	{
 		errno_exit("Unsupported format!");
 	}
 }
 
-static void open_device(char* dev_name)
+static void open_device(const char* dev_name)
 {
 	if ((fd = open(dev_name, O_RDWR)) < 0) {
 		perror("Can't open device");
@@ -329,7 +340,7 @@ static void uninit_device(void)
 		errno_exit("munmap");
 }
 
-static int init_ndi(char* src_name)
+static int init_ndi(const char* src_name)
 {
 	if (!NDIlib_initialize()) 
 		errno_exit("Failed to initialize NDIlib");
@@ -346,7 +357,7 @@ static int init_ndi(char* src_name)
 	
 	NDI_video_frame.xres = fmt.fmt.pix.width;
 	NDI_video_frame.yres = fmt.fmt.pix.height;
-	NDI_video_frame.frame_rate_N = 60000;
+	NDI_video_frame.frame_rate_N = fps*1000;
 	NDI_video_frame.frame_rate_D = 1000;
 
 	switch (format) {
@@ -355,6 +366,7 @@ static int init_ndi(char* src_name)
 			// NDI_video_frame.p_data = (uint8_t*)malloc(NDI_video_frame.xres * NDI_video_frame.yres * 3/2);
 			NDI_video_frame.p_data = (uint8_t *)buffer_start;
 			break;
+			// TODO: Add YUYV support here
 		// case V4L2_PIX_FMT_YUYV:
 		// 	NDI_video_frame.FourCC = NDIlib_FourCC_type_UYVY;
 		// 	NDI_video_frame.p_data = (uint8_t *)buffer_start;
@@ -362,7 +374,9 @@ static int init_ndi(char* src_name)
 		case V4L2_PIX_FMT_MJPEG:
 			// somehow the ffmpeg decoder would decode this into YUVJ422P, assuming it's equivalent to P216
 			NDI_video_frame.FourCC = NDIlib_FourCC_type_UYVY;
-
+			break;
+		case V4L2_PIX_FMT_H264:
+			NDI_video_frame.FourCC = (NDIlib_FourCC_video_type_e)NDIlib_FourCC_type_H264_highest_bandwidth;
 			break;
 		default:
 			errno_exit("Unspported format for NDI\n");
@@ -402,16 +416,6 @@ static int init_view()
 			printf("Unable to initialize IMG\n");
 			return -1;
 		}
-		// 		texture = SDL_CreateTexture(renderer
-		// 				// YUY2 is also know as YUYV in SDL
-		// 				, SDL_PIXELFORMAT_IYUV
-		// 				, SDL_TEXTUREACCESS_STREAMING
-		// 				, fmt.fmt.pix.width
-		// 				, fmt.fmt.pix.height);
-		// if (!texture) {
-		// 	printf("SDL_CreateTexture failed: %s\n", SDL_GetError());
-		// 	return -1;
-		// }
 	} 
 	else if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_NV12)
 	{
@@ -424,6 +428,10 @@ static int init_view()
 			printf("SDL_CreateTexture failed: %s\n", SDL_GetError());
 			return -1;
 		}
+	}
+	else if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_H264)
+	{
+		printf("Input format is H264, skip rendering");
 	}
 
 	printf("Device: %s\nWidth: %d\nHeight: %d\nFramerate: %d\n"
@@ -628,30 +636,63 @@ static void close_view()
 		SDL_Quit();
 }
 
-static int help(char *prog_name)
+static int help(const char *prog_name)
 {
-	printf("Usage: %s [-d dev_name -o source_name]\n", prog_name);
+	printf("Usage: %s [-c config_path]\n", prog_name);
+	return 0;
+}
+
+static int init_config(const char * config_path)
+{
+	using namespace libconfig;
+	Config cfg;
+	// Read the file. If there is an error, report it and exit.
+  try
+  {
+		cfg.readFile(config_path);
+	}
+  catch(const FileIOException &fioex)
+  {
+    std::cerr << "I/O error while reading file." << std::endl;
+    return(EXIT_FAILURE);
+  }
+  catch(const ParseException &pex)
+  {
+    std::cerr << "Parse error at " << pex.getFile() << ":" << pex.getLine()
+              << " - " << pex.getError() << std::endl;
+    return(EXIT_FAILURE);
+  }
+
+	if (!cfg.lookupValue("fmt_width", fmt_width))
+		printf("fmt_width is not set, using default value\n");
+	if (!cfg.lookupValue("fmt_height", fmt_height))
+		printf("fmt_height is not set, using default value\n");
+	if (!cfg.lookupValue("fps", fps))
+		printf("fps is not set, using default value\n");
+	memset(dev_name, 0, sizeof(dev_name));
+	memset(output_name, 0, sizeof(output_name));
+	strcpy(dev_name, cfg.lookup("dev_name").c_str());
+	strcpy(output_name, cfg.lookup("output_name").c_str());
+
+
 	return 0;
 }
 
 int main(int argc, char **argv)
 {
 	int opt;
-	char* source_name = nullptr;
 
-	if (argc != 5){
+	if (argc != 3){
 		help(argv[0]);
 		exit(-1);
 	}
 
-	while ((opt = getopt(argc, argv, "hd:o:")) != -1)
+	while ((opt = getopt(argc, argv, "hc:")) != -1)
 	{
 		switch (opt) {
-			case 'd':
-				dev_name = optarg;
-				break;
-			case 'o':
-				source_name = optarg;
+			case 'c':
+				if(init_config(argv[2]) != 0)
+					exit(-1);
 				break;
 			case 'h':
 				return help(argv[0]);
@@ -667,7 +708,7 @@ int main(int argc, char **argv)
 	}		
 	init_decoder();
 
-	if (init_ndi(source_name)) {
+	if (init_ndi(output_name)) {
 		// Destroy the NDI sender
 		NDIlib_send_destroy(pNDI_send);
 		// Not required, but nice
