@@ -10,7 +10,9 @@ Inspired from https://github.com/marcosps/v4l2_webcam
 
 
 ### Install libconfig
-`cd 3rdparty/libconfig-1.7.3/`  
+`cd 3rdparty/`  
+`tar -xf libconfig-1.7.3.tar.gz`  
+`cd libconfig-1.7.3`  
 `./configure`  
 `make & sudo make install`  
 
