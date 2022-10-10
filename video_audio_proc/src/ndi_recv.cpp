@@ -267,14 +267,6 @@ int init_device(char* snd, snd_pcm_stream_t stream_t)
 	float latency = req_buff_size/ float(rate * 4);
 	printf("The estimated latency with current setting is: %.2fms\n", 1000*latency);
 
-	// snd_pcm_sw_params_t* sw_params;
-	// snd_pcm_sw_params_alloca(&sw_params);
-
-	// snd_pcm_uframes_t val;
-	// snd_pcm_sw_params_set_start_threshold(handle, sw_params, 4000);
-	// snd_pcm_sw_params_get_start_threshold(sw_params, &val);
-	// snd_pcm_sw_params(handle, sw_params);
-	// std::cout << "Start threshold: " << val << std::endl;
 
   if ((err = snd_pcm_prepare (handle)) < 0) {
     fprintf (stderr, "cannot prepare audio interface for use (%s)\n",
