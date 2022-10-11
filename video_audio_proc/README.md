@@ -25,6 +25,8 @@ The commands will generate an executable `v4l_sdl_stream` in the `build` folder.
 
 
 Sender: ffmpeg -f v4l2 -framerate 60 -video_size 1920x1080 -input_format mjpeg -i /dev/video4 -preset faster -pix_fmt yuv420p -f mpegts -flush_packets 0 udp://127.0.0.1:23000
+Sender: ffmpeg -f v4l2 -framerate 60 -video_size 1920x1080 -input_format mjpeg -i /dev/video3 -preset ultrafast -f mpegts -flush_packets 0 -threads 6 -tune zerolatency udp://127.0.0.1:23000 
+
 
 Receiver: ffplay  udp://127.0.0.1:23000 -fflags nobuffer
 

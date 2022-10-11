@@ -34,7 +34,11 @@ Avatar Audio Video Processing
 
 Sender: ffmpeg -f v4l2 -framerate 60 -video_size 1920x1080 -input_format mjpeg -i /dev/video4 -preset faster -pix_fmt yuv420p -f mpegts -flush_packets 0 udp://127.0.0.1:23000
 
+Sender(GPU): ffmpeg -f v4l2 -framerate 60 -video_size 1920x1080 -input_format mjpeg -hwaccel cuda -i /dev/video2 -f mpegts -flush_packets 0 udp://127.0.0.1:23000
+
 Receiver: ffplay  udp://127.0.0.1:23000 -fflags nobuffer
+ffplay udp://127.0.0.1:23000 -fflags nobuffer -framedrop -flags low_delay
+
 
   Helpful links:
   https://trac.ffmpeg.org/wiki/StreamingGuide#Latency

@@ -95,11 +95,6 @@ static void draw_MJPEG()
 	SDL_DestroyTexture(tx);
 	SDL_FreeSurface(frame);
 	SDL_RWclose(buf_stream);
-	// int pitch = fmt.fmt.pix.width * 3 - 2;
-	// SDL_UpdateTexture(texture, NULL, decoded_mjpeg_buf, pitch);
-	// SDL_RenderClear(renderer);
-	// SDL_RenderCopy(renderer, texture, NULL, NULL);
-	// SDL_RenderPresent(renderer);;
 
 }
 
@@ -485,33 +480,34 @@ static int read_frame()
 		}
 	}
 
-	time_point end = now;
-	duration d = end - start;
-	std::cout << "DQBUF: " << d.count() <<std::endl;
 
 	if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_YUYV)
 		draw_YUV();
 	else if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_MJPEG)
 	{
 		draw_MJPEG();
-		packet_in.data = (uint8_t*)buffer_start;
-		packet_in.size = buf.length;
-		if(AVERROR(EAGAIN) == (avcodec_send_packet(decoder_ctx, &packet_in)))
-		{
-			fprintf(stderr,"Flushing input raw frames\n");
-			avcodec_flush_buffers(decoder_ctx);
-		}
-		if ((avcodec_receive_frame(decoder_ctx, decoded_frame)) == AVERROR(EAGAIN))
-		{
-			fprintf(stderr,"Flushing output raw frames\n");
-			avcodec_flush_buffers(decoder_ctx);
-		}
+		// packet_in.data = (uint8_t*)buffer_start;
+		// packet_in.size = buf.length;
+		// if(AVERROR(EAGAIN) == (avcodec_send_packet(decoder_ctx, &packet_in)))
+		// {
+		// 	fprintf(stderr,"Flushing input raw frames\n");
+		// 	avcodec_flush_buffers(decoder_ctx);
+		// }
+		// if ((avcodec_receive_frame(decoder_ctx, decoded_frame)) == AVERROR(EAGAIN))
+		// {
+		// 	fprintf(stderr,"Flushing output raw frames\n");
+		// 	avcodec_flush_buffers(decoder_ctx);
+		// }
 	}
 	else if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_NV12)
 		draw_NV12();
 
+
 	if (publish_ndi) 
 		send_NDI(fmt.fmt.pix.pixelformat);
+	time_point end = now;
+	duration d = end - start;
+	std::cout << "avcodec time: " << d.count() <<std::endl;
 
 	buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	buf.memory = V4L2_MEMORY_MMAP;
@@ -542,8 +538,17 @@ static void init_decoder(void)
 	// For MJPEG the common decoded format is YUVJ422P
 	decoder_ctx->pix_fmt = AV_PIX_FMT_UYVY422;
 	decoder_ctx->framerate = AVRational{1,60};
-	decoder_ctx->thread_type = 2;
-	
+	decoder_ctx->thread_count = 0;
+	if (pCodec->capabilities | AV_CODEC_CAP_FRAME_THREADS)
+		decoder_ctx->thread_type = FF_THREAD_FRAME;
+	else if (pCodec->capabilities | AV_CODEC_CAP_SLICE_THREADS)
+		decoder_ctx->thread_type = FF_THREAD_SLICE;
+	else
+	{
+		decoder_ctx->thread_count = 1; // don't use multithreading
+		printf("The decoder doesn't support multithreading\n");
+	}
+
 	av_init_packet(&packet_in);
 	//packet_in.buf = av_buffer_create(buffers->start, buffers->length, free_buffers, decoded_frame->opaque, AV_BUFFER_FLAG_READONLY);
 	if(packet_in.buf == NULL)
