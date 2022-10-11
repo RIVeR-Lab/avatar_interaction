@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <atomic>
+#include <string>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -30,12 +31,12 @@ static snd_pcm_hw_params_t *hw_params;
 static snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
 static snd_pcm_uframes_t frames = 500;   // frames per period
 static unsigned int periods_per_buffer = 2;
+static char snd_name[255] = "";
+static char playback[255] = "";
+static char output_name[255] = "";
 
 static std::atomic<bool> exit_loop(false);
 static void sigint_handler(int) { exit_loop = true; }
-
-static bool enable_playback = false;
-
 
 int init_device(char* snd, snd_pcm_stream_t stream_t)
 {
@@ -158,8 +159,43 @@ int init_device(char* snd, snd_pcm_stream_t stream_t)
 
 }
 
+
+static int help(char *prog_name)
+{
+  printf("Usage: %s [-i source_dev -o output_name -a playback_dev], -a is optional\n Example: %s -i plughw:0,0 -o spatial\n",
+         prog_name, prog_name);
+  return 0;
+}
+
 int main(int argc, char* argv[])
 {
+  int opt;
+	if (argc < 5){
+		help(argv[0]);
+		exit(-1);
+	}
+
+	while ((opt = getopt(argc, argv, "hi:a:o:")) != -1)
+	{
+		switch (opt) {
+			case 'i':
+        strcpy(snd_name, optarg);
+				break;
+			case 'a':
+        strcpy(playback, optarg);
+				init_device(playback, SND_PCM_STREAM_PLAYBACK);
+				printf("Audio device initiated\n");
+				break;
+      case 'o':
+        strcpy(output_name, optarg);
+        init_device(snd_name, SND_PCM_STREAM_CAPTURE);
+        printf("Audio device initiated\n");
+        break;
+      case 'h':
+				return help(argv[0]);
+				break;
+		}
+	}
 	// Not required, but "correct" (see the SDK documentation).
 	if (!NDIlib_initialize()) {
 		// Cannot run NDI. Most likely because the CPU is not sufficient (see SDK documentation).
@@ -167,16 +203,13 @@ int main(int argc, char* argv[])
 		printf("Cannot run NDI.");
 		return 0;
 	}
-	assert( argc == 2);
-	init_device(argv[1], SND_PCM_STREAM_CAPTURE);
-	printf("Audio device initiated\n");
 
 	// Catch interrupt so that we can shut down gracefully
 	signal(SIGINT, sigint_handler);
 
 	// Create an NDI source that is called "My 16bpp Audio" and is clocked to the audio.
 	NDIlib_send_create_t NDI_send_create_desc;
-	NDI_send_create_desc.p_ndi_name = "16bpp Audio";
+	NDI_send_create_desc.p_ndi_name = std::string(output_name).c_str();
 	NDI_send_create_desc.clock_audio = true;
 
 	// We create the NDI finder
@@ -184,7 +217,6 @@ int main(int argc, char* argv[])
 	if (!pNDI_send)
 		return 0;
 
-	// We are going to send 1920 audio samples at a time
 	NDIlib_audio_frame_interleaved_16s_t NDI_audio_frame;
 	NDI_audio_frame.sample_rate = rate;
 	NDI_audio_frame.no_channels = channel;
