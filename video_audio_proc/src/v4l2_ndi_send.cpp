@@ -59,7 +59,7 @@ static AVCodecContext *decoder_ctx;
 static AVCodec *pCodec;
 static AVPacket packet_in;
 static AVFrame *decoded_frame;
-static void *decoded_mjpeg_buf = NULL;
+static void *decoded_mjpeg_buf = calloc(fmt_height*fmt_width, sizeof(uint16_t));
 
 
 static void errno_exit(const char *s) 
@@ -125,19 +125,20 @@ static void send_NDI(unsigned int format)
 		// swscale solution
 		uint8_t *p_image = (uint8_t *)decoded_mjpeg_buf;
 		auto dst_fmt = AV_PIX_FMT_UYVY422;
-		  struct SwsContext* conversion = sws_getContext(fmt_width,
-                                        fmt_height,
-																				decoder_ctx->sw_pix_fmt,
-																				fmt_width,
-                                        fmt_height,
-																				dst_fmt,
-                                        SWS_FAST_BILINEAR | SWS_FULL_CHR_H_INT | SWS_ACCURATE_RND,
-                                        NULL,
-                                        NULL,
-                                        NULL);
-		uint8_t ** dst_buff = &p_image;
+		struct SwsContext *conversion = sws_getContext(fmt_width,
+																									 fmt_height,
+																									 decoder_ctx->sw_pix_fmt,
+																									 fmt_width,
+																									 fmt_height,
+																									 dst_fmt,
+																									 SWS_FAST_BILINEAR | SWS_FULL_CHR_H_INT | SWS_ACCURATE_RND,
+																									 NULL,
+																									 NULL,
+																									 NULL);
+		uint8_t* dst_buff[1] = {p_image};
 		int dst_linesize[1] = {fmt_width*2}; 
 	  sws_scale(conversion, decoded_frame->data, decoded_frame->linesize, 0, fmt_height, dst_buff, dst_linesize);
+		sws_freeContext(conversion);
 
 		// forloop solution, they take about the same time.
 		// uint16_t *p_image = (uint16_t *)decoded_mjpeg_buf;
@@ -566,10 +567,6 @@ static void init_decoder(void)
 	decoded_frame->width = fmt_width;
 	decoded_frame->height = fmt_height;
 	decoded_frame->format = decoder_ctx->pix_fmt;
-
-	// Hardcoded buffer size for 1920x1080 decoded MJPEG frame. 
-	// height and width must be divisable by 16 or 32.
-	decoded_mjpeg_buf = malloc(fmt_width*fmt_height*sizeof(uint16_t));
 }
 
 static void mainloop(void)

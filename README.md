@@ -22,10 +22,11 @@ Avatar Audio Video Processing
     - [ ] YUYV format support
     - [ ] Crop 
     - [ ] Resolution
+    - [x] Solve memory leak in MJPEG mode
 - [ ] AV integration
-    - [ ] Integrate 3 mics, 3 cameras, 1 speaker on robot side
-    - [ ] Integrate 1 camera, 1 headphone on operator side
-    - [ ] assess audio video desync
+    - [x] Integrate 3 mics, 3 cameras, 1 speaker on robot side
+    - [x] Integrate 1 camera, 1 headphone on operator side
+    - [x] assess audio video desync
     - [ ] AEC implementation
 
 - [ ] ffmpeg for video streaming
