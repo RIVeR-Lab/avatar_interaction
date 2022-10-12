@@ -77,6 +77,7 @@ target_link_libraries(ndi_send
   avutil
   swscale
   libasound.so
+  Threads::Threads
 )
 
 add_executable(alsa_capture

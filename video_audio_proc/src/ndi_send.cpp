@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <csignal>
 #include <assert.h>
 #include <fcntl.h>              /* low-level i/o */
 #include <unistd.h>
@@ -16,6 +17,7 @@
 #include <sys/ioctl.h>
 #include <linux/videodev2.h>
 #include <atomic>
+#include <thread>
 
 // C++ libraries
 #include <iostream>
@@ -80,9 +82,9 @@ static snd_pcm_uframes_t frames = 500;   // frames per period
 static unsigned int periods_per_buffer = 2;
 static char snd_name[255] = "";
 static NDIlib_audio_frame_interleaved_16s_t NDI_audio_frame;
-
-
 static std::atomic<bool> exit_loop(false);
+
+static void sigint_handler(int) { exit_loop = true; };
 
 static void errno_exit(const char *s) 
 {
@@ -191,36 +193,37 @@ static void encode_video_ndi(unsigned int format)
 	}
 }
 
-static void encode_audio_ndi()
+static void send_audio_ndi()
 {
-	int rc;
-	rc = snd_pcm_readi(handle, buffer, frames);
-	if (rc == -EPIPE)
+	while(!exit_loop)
 	{
-		/* EPIPE means overrun */
-		fprintf(stderr, "overrun occurred\n");
-		snd_pcm_prepare(handle);
+		int rc;
+		rc = snd_pcm_readi(handle, buffer, frames);
+		if (rc == -EPIPE)
+		{
+			/* EPIPE means overrun */
+			fprintf(stderr, "overrun occurred\n");
+			snd_pcm_prepare(handle);
+		}
+		else if (rc < 0)
+		{
+			fprintf(stderr,
+							"error from read: %s\n",
+							snd_strerror(rc));
+		}
+		else if (rc != (int)frames)
+		{
+			fprintf(stderr, "short read, read %d frames\n", rc);
+		}
+		NDI_audio_frame.p_data = (int16_t *)buffer;
+		NDIlib_util_send_send_audio_interleaved_16s(pNDI_send, &NDI_audio_frame);
 	}
-	else if (rc < 0)
-	{
-		fprintf(stderr,
-						"error from read: %s\n",
-						snd_strerror(rc));
-	}
-	else if (rc != (int)frames)
-	{
-		fprintf(stderr, "short read, read %d frames\n", rc);
-	}
-	NDI_audio_frame.p_data = (int16_t *)buffer;
-	NDIlib_util_send_send_audio_interleaved_16s(pNDI_send, &NDI_audio_frame);
 }
 
 static void send_NDI(unsigned int format)
 {
 	encode_video_ndi(format);
-	encode_audio_ndi();
 	time_point start = now;
-	NDIlib_util_send_send_audio_interleaved_16s(pNDI_send, &NDI_audio_frame);
 	// NDIlib_send_send_video_v2(pNDI_send, &NDI_video_frame);
 	NDIlib_send_send_video_async_v2(pNDI_send, &NDI_video_frame);
 	time_point end = now;
@@ -758,7 +761,8 @@ static void init_decoder(void)
 static void mainloop(void)
 {
 	SDL_Event event;
-	for (;;) {
+	std::thread audio_ndi_t(send_audio_ndi);
+	while(!exit_loop){
 		while (SDL_PollEvent(&event))
 			if (event.type == SDL_QUIT)
 				return;
@@ -801,6 +805,7 @@ static void mainloop(void)
 			// EAGAIN - continue select loop.
 		}
 	}
+	audio_ndi_t.join();
 }
 
 static void close_view()
@@ -858,6 +863,7 @@ static int init_config(const char * config_path)
 	strcpy(dev_name, cfg.lookup("dev_name").c_str());
 	strcpy(output_name, cfg.lookup("output_name").c_str());
 	strcpy(snd_name, cfg.lookup("snd_name").c_str());
+	assert(strlen(snd_name) != 0);
 
 
 	return 0;
@@ -866,6 +872,7 @@ static int init_config(const char * config_path)
 int main(int argc, char **argv)
 {
 	int opt;
+	signal(SIGINT, sigint_handler);
 
 	if (argc != 3){
 		help(argv[0]);
@@ -886,9 +893,9 @@ int main(int argc, char **argv)
 
 	open_device(dev_name);
 	init_video_device();
-	printf("Video device initiated");
+	printf("Video device initiated\n");
 	init_audio_device(snd_name, SND_PCM_STREAM_CAPTURE);
-	printf("Audio device initiated");
+	printf("Audio device initiated\n");
 
 	if (view_playback)
 		if (init_view())
