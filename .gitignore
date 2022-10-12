@@ -1,4 +1,5 @@
 .vscode/
 video_audio_proc/build/
 video_audio_proc/3rdparty/libconfig-1.7.3/*
+video_audio_proc/3rdparty/UltraGrid
 
