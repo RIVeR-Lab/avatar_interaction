@@ -14,12 +14,12 @@ Avatar Audio Video Processing
     - [x] Send out NDI packet
     - [x] Receive NDI packet
     - [x] Solve underrun issue (solved by adding a delay on purpose)
-    - [ ] Try capturing device with MMAP mode
+    - [ ] ~~Try capturing device with MMAP mode~~
 - [ ] NDI video processing
     - [x] MJPEG format support (SO HARD!!!!) Switch to FFMPEG might be the option
     - [ ] Send audio along with video
-    - [ ] How to generate 60fps video?? Maybe play with the buffer too?
-    - [ ] YUYV format support
+    - [x] How to generate 60fps video?? Maybe play with the buffer too? (solved with better router)
+    - [ ] ~~YUYV format support~~
     - [ ] Crop 
     - [ ] Resolution
     - [x] Solve memory leak in MJPEG mode
@@ -31,6 +31,9 @@ Avatar Audio Video Processing
 
 - [ ] ffmpeg for video streaming
     - [ ] Tunning ffmpeg for different streaming options: resolution, ratio, codec, fps, stream protocol
+
+- [ ] Try Ultragrid
+    - [ ] Use Ultragrid to transmit Jabra and Insta with compression.
 
 Sender: ffmpeg -f v4l2 -framerate 60 -video_size 1920x1080 -input_format mjpeg -i /dev/video4 -preset faster -pix_fmt yuv420p -f mpegts -flush_packets 0 udp://127.0.0.1:23000
 

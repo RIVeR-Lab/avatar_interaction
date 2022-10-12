@@ -162,7 +162,7 @@ int init_device(char* snd, snd_pcm_stream_t stream_t)
 
 static int help(char *prog_name)
 {
-  printf("Usage: %s [-i source_dev -o output_name -a playback_dev], -a is optional\n Example: %s -i plughw:0,0 -o spatial\n",
+  printf("Usage: %s [-c source_dev -o output_name -a playback_dev], -a is optional\n Example: %s -i plughw:0,0 -o spatial\n",
          prog_name, prog_name);
   return 0;
 }
@@ -178,7 +178,7 @@ int main(int argc, char* argv[])
 	while ((opt = getopt(argc, argv, "hi:a:o:")) != -1)
 	{
 		switch (opt) {
-			case 'i':
+			case 'c':
         strcpy(snd_name, optarg);
 				break;
 			case 'a':

@@ -63,6 +63,22 @@ target_link_libraries(ndi_recv
   ${CMAKE_SOURCE_DIR}/3rdparty/lib/x86_64-linux-gnu/libndi.so
 )
 
+add_executable(ndi_send
+  src/ndi_send.cpp
+)
+
+target_link_libraries(ndi_send
+  ${SDL2_LIBRARIES}
+  ${SDL2_IMAGE_LIBRARIES}
+  ${CMAKE_SOURCE_DIR}/3rdparty/lib/x86_64-linux-gnu/libndi.so
+  ${LIBCONFIG++_LIBRARIES}
+  avformat
+  avcodec
+  avutil
+  swscale
+  libasound.so
+)
+
 add_executable(alsa_capture
   src/alsa_capture.c
 )
