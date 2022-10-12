@@ -122,15 +122,15 @@ static void send_NDI(unsigned int format)
 		uint8_t *p_image = (uint8_t *)decoded_mjpeg_buf;
 		auto dst_fmt = AV_PIX_FMT_UYVY422;
 		struct SwsContext *conversion = sws_getContext(fmt_width,
-																									 fmt_height,
-																									 decoder_ctx->sw_pix_fmt,
-																									 fmt_width,
-																									 fmt_height,
-																									 dst_fmt,
-																									 SWS_FAST_BILINEAR | SWS_FULL_CHR_H_INT | SWS_ACCURATE_RND,
-																									 NULL,
-																									 NULL,
-																									 NULL);
+														fmt_height,
+														decoder_ctx->sw_pix_fmt,
+														fmt_width,
+														fmt_height,
+														dst_fmt,
+														SWS_FAST_BILINEAR | SWS_FULL_CHR_H_INT | SWS_ACCURATE_RND,
+														NULL,
+														NULL,
+														NULL);
 		uint8_t* dst_buff[1] = {p_image};
 		int dst_linesize[1] = {fmt_width*2}; 
 	  sws_scale(conversion, decoded_frame->data, decoded_frame->linesize, 0, fmt_height, dst_buff, dst_linesize);
