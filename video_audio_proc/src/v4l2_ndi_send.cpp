@@ -54,6 +54,7 @@ static unsigned int fps = 60;
 static NDIlib_video_frame_v2_t NDI_video_frame;
 static NDIlib_send_instance_t pNDI_send;
 static bool publish_ndi = true;
+static bool play_drawback = false;
 
 static AVCodecContext *decoder_ctx;
 static AVCodec *pCodec;
@@ -481,25 +482,26 @@ static int read_frame()
 	}
 
 
-	if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_YUYV)
+	if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_YUYV && play_drawback)
 		draw_YUV();
 	else if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_MJPEG)
 	{
-		draw_MJPEG();
-		// packet_in.data = (uint8_t*)buffer_start;
-		// packet_in.size = buf.length;
-		// if(AVERROR(EAGAIN) == (avcodec_send_packet(decoder_ctx, &packet_in)))
-		// {
-		// 	fprintf(stderr,"Flushing input raw frames\n");
-		// 	avcodec_flush_buffers(decoder_ctx);
-		// }
-		// if ((avcodec_receive_frame(decoder_ctx, decoded_frame)) == AVERROR(EAGAIN))
-		// {
-		// 	fprintf(stderr,"Flushing output raw frames\n");
-		// 	avcodec_flush_buffers(decoder_ctx);
-		// }
+		if (play_drawback)
+			draw_MJPEG();
+		packet_in.data = (uint8_t*)buffer_start;
+		packet_in.size = buf.length;
+		if(AVERROR(EAGAIN) == (avcodec_send_packet(decoder_ctx, &packet_in)))
+		{
+			fprintf(stderr,"Flushing input raw frames\n");
+			avcodec_flush_buffers(decoder_ctx);
+		}
+		if ((avcodec_receive_frame(decoder_ctx, decoded_frame)) == AVERROR(EAGAIN))
+		{
+			fprintf(stderr,"Flushing output raw frames\n");
+			avcodec_flush_buffers(decoder_ctx);
+		}
 	}
-	else if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_NV12)
+	else if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_NV12 && play_drawback)
 		draw_NV12();
 
 
