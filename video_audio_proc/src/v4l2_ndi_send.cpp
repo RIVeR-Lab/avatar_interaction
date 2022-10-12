@@ -54,7 +54,7 @@ static unsigned int fps = 60;
 static NDIlib_video_frame_v2_t NDI_video_frame;
 static NDIlib_send_instance_t pNDI_send;
 static bool publish_ndi = true;
-static bool play_drawback = false;
+static bool view_playback = false;
 
 static AVCodecContext *decoder_ctx;
 static AVCodec *pCodec;
@@ -482,11 +482,11 @@ static int read_frame()
 	}
 
 
-	if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_YUYV && play_drawback)
+	if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_YUYV && view_playback)
 		draw_YUV();
 	else if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_MJPEG)
 	{
-		if (play_drawback)
+		if (view_playback)
 			draw_MJPEG();
 		packet_in.data = (uint8_t*)buffer_start;
 		packet_in.size = buf.length;
@@ -501,7 +501,7 @@ static int read_frame()
 			avcodec_flush_buffers(decoder_ctx);
 		}
 	}
-	else if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_NV12 && play_drawback)
+	else if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_NV12 && view_playback)
 		draw_NV12();
 
 
@@ -706,10 +706,12 @@ int main(int argc, char **argv)
 	open_device(dev_name);
 	init_device();
 
-	if(init_view()) {
-		close_device();
-		return -1;
-	}		
+	if (view_playback)
+		if (init_view())
+		{
+			close_device();
+			return -1;
+		}
 	init_decoder();
 
 	if (init_ndi(output_name)) {

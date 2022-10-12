@@ -3,7 +3,7 @@ project(video_audio_proc C CXX)
 
 add_compile_options(-std=c++11 -o-O20 -Wall)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
-set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
 find_package(SDL2 REQUIRED)
 find_package(SDL2_image REQUIRED)
