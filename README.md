@@ -23,6 +23,7 @@ Avatar Audio Video Processing
     - [ ] Crop 
     - [ ] Resolution
     - [x] Solve memory leak in MJPEG mode
+    - [ ] Test with discovery server
 - [ ] AV integration
     - [x] Integrate 3 mics, 3 cameras, 1 speaker on robot side
     - [x] Integrate 1 camera, 1 headphone on operator side
