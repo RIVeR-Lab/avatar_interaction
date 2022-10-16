@@ -15,13 +15,20 @@ Avatar Audio Video Processing
     - [x] Receive NDI packet
     - [x] Solve underrun issue (solved by adding a delay on purpose)
     - [ ] ~~Try capturing device with MMAP mode~~
+    - [ ] Look into frame drops along the time. (Seems related to how I wrote the receiver)
+    - [x] Look into receiver issue. The speaker and headphone device name not shown in alsa.
+    - [x] Resource busy (Alsa) 
+        - Run `fuser -fv /dev/snd*` to show what's using the port, most of the time it will be pulseaudio
+        - Run `pulseaudio --kill` to turn off pulseaudio
 - [ ] NDI video processing
     - [x] MJPEG format support (SO HARD!!!!) Switch to FFMPEG might be the option
-    - [ ] Send audio along with video
+    - [x] Send audio along with video
+        - [ ] Tune the synchronization
     - [x] How to generate 60fps video?? Maybe play with the buffer too? (solved with better router)
     - [ ] ~~YUYV format support~~
     - [ ] Crop 
     - [ ] Resolution
+    - [ ] Discovery service
     - [x] Solve memory leak in MJPEG mode
 - [ ] AV integration
     - [x] Integrate 3 mics, 3 cameras, 1 speaker on robot side
@@ -32,7 +39,7 @@ Avatar Audio Video Processing
 - [ ] ffmpeg for video streaming
     - [ ] Tunning ffmpeg for different streaming options: resolution, ratio, codec, fps, stream protocol
 
-- [ ] Try Ultragrid
+- [ ] ~~Try Ultragrid~~ (The Ultragrid would crash the system somehow)
     - [ ] Use Ultragrid to transmit Jabra and Insta with compression.
 
 Sender: ffmpeg -f v4l2 -framerate 60 -video_size 1920x1080 -input_format mjpeg -i /dev/video4 -preset faster -pix_fmt yuv420p -f mpegts -flush_packets 0 udp://127.0.0.1:23000
