@@ -20,17 +20,18 @@ Avatar Audio Video Processing
     - [x] Resource busy (Alsa) 
         - Run `fuser -fv /dev/snd*` to show what's using the port, most of the time it will be pulseaudio
         - Run `pulseaudio --kill` to turn off pulseaudio
+        - Or use 'ndi_recv_pa' to use pulseaudio
 - [ ] NDI video processing
     - [x] MJPEG format support (SO HARD!!!!) Switch to FFMPEG might be the option
     - [x] Send audio along with video
         - [ ] Tune the synchronization
     - [x] How to generate 60fps video?? Maybe play with the buffer too? (solved with better router)
     - [ ] ~~YUYV format support~~
-    - [ ] Crop 
+    - [x] Crop 
     - [ ] Resolution
-    - [ ] Discovery service
     - [x] Solve memory leak in MJPEG mode
     - [ ] Test with discovery server
+    - [ ] Try with multiple NICs
 - [ ] AV integration
     - [x] Integrate 3 mics, 3 cameras, 1 speaker on robot side
     - [x] Integrate 1 camera, 1 headphone on operator side

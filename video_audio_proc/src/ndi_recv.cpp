@@ -324,7 +324,7 @@ int main(int argc, char* argv[])
 
 	// We now have at least one source, so we create a receiver to look at it.
 	NDIlib_recv_create_v3_t create_settings;
-	create_settings.color_format = NDIlib_recv_color_format_fastest;
+	create_settings.color_format = (NDIlib_recv_color_format_e)NDIlib_recv_color_format_compressed_v3;
 	NDIlib_source_t selected_source;
 	// create_settings.bandwidth = NDIlib_recv_bandwidth_highest;
 	if (source_name == nullptr) 
