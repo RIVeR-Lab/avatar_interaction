@@ -15,6 +15,7 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <linux/videodev2.h>
+#include <utils/video_frame_proc.h>
 
 // C++ libraries
 #include <iostream>
@@ -34,6 +35,12 @@ extern "C" {
 	#include <libavutil/avutil.h>
 	#include <libswscale/swscale.h>
 }
+
+extern void crop_uyvy(const uint8_t *src_buf, uint16_t src_width, uint16_t src_height,
+      uint8_t* dst_buf, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2);
+
+static unsigned int crop_x1, crop_x2, crop_y1, crop_y2;
+static bool cropping = false;
 
 #define now        std::chrono::high_resolution_clock::now();
 using time_point = std::chrono::high_resolution_clock::time_point;
@@ -61,6 +68,7 @@ static AVCodec *pCodec;
 static AVPacket packet_in;
 static AVFrame *decoded_frame;
 static void *decoded_mjpeg_buf = calloc(fmt_height*fmt_width, sizeof(uint16_t));
+static uint8_t *cropped_buf = NULL;
 
 
 static void errno_exit(const char *s) 
@@ -135,6 +143,16 @@ static void send_NDI(unsigned int format)
 		int dst_linesize[1] = {fmt_width*2}; 
 	  sws_scale(conversion, decoded_frame->data, decoded_frame->linesize, 0, fmt_height, dst_buff, dst_linesize);
 		sws_freeContext(conversion);
+		if (cropping)
+		{
+			std::cout << "Cropping" << std::endl;
+			crop_uyvy((uint8_t *)decoded_mjpeg_buf, fmt_width, fmt_height, cropped_buf, crop_x1, crop_y1, crop_x2, crop_y2);
+			NDI_video_frame.p_data = cropped_buf;
+		}			
+		else
+			NDI_video_frame.p_data = (uint8_t *)decoded_mjpeg_buf;
+		std::cout << NDI_video_frame.xres << std::endl;
+		std::cout << NDI_video_frame.yres << std::endl;
 
 		// forloop solution, they take about the same time.
 		// uint16_t *p_image = (uint16_t *)decoded_mjpeg_buf;
@@ -158,7 +176,6 @@ static void send_NDI(unsigned int format)
 		// 	}
 		// }
 
-		NDI_video_frame.p_data = (uint8_t *)decoded_mjpeg_buf;
 		time_point end = now;
 		duration d = end - start;
 		std::cout << "Codec conversion time: " << d.count() << std::endl;
@@ -352,8 +369,19 @@ static int init_ndi(const char* src_name)
 	if (!pNDI_send) 
 		errno_exit("Failed to initialize NDI send instance");
 	
-	NDI_video_frame.xres = fmt.fmt.pix.width;
-	NDI_video_frame.yres = fmt.fmt.pix.height;
+	if (cropping)
+	{
+		crop_x1 = crop_x1 / 2 * 2;
+		crop_x2 = crop_x2 / 2 * 2;
+		NDI_video_frame.xres = crop_x2 - crop_x1 + 1;
+		NDI_video_frame.yres = crop_y2 - crop_y1 + 1;
+		cropped_buf = (uint8_t*)malloc(NDI_video_frame.xres * NDI_video_frame.yres * 2);
+	}
+	else
+	{
+		NDI_video_frame.xres = fmt.fmt.pix.width;
+		NDI_video_frame.yres = fmt.fmt.pix.height;
+	}
 	NDI_video_frame.frame_rate_N = fps*1000;
 	NDI_video_frame.frame_rate_D = 1000;
 
@@ -677,6 +705,11 @@ static int init_config(const char * config_path)
 	memset(output_name, 0, sizeof(output_name));
 	strcpy(dev_name, cfg.lookup("dev_name").c_str());
 	strcpy(output_name, cfg.lookup("output_name").c_str());
+	if (cfg.lookupValue("crop_x1", crop_x1))
+		if (cfg.lookupValue("crop_x2", crop_x2))
+			if (cfg.lookupValue("crop_y1", crop_y1))
+				if (cfg.lookupValue("crop_y2", crop_y2))
+					cropping = true;
 
 
 	return 0;
@@ -735,5 +768,6 @@ int main(int argc, char **argv)
 	// Not required, but nice
 	NDIlib_destroy();
 	free(decoded_mjpeg_buf);
+	free(cropped_buf);
 	return 0;
 }
