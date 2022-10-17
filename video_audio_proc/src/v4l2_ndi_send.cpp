@@ -118,8 +118,23 @@ static void draw_NV12()
 
 static void send_NDI(unsigned int format)
 {
-	if (format == V4L2_PIX_FMT_NV12 || format == V4L2_PIX_FMT_H264)
+	if (format == V4L2_PIX_FMT_NV12)
 	{
+	}
+	else if (format == V4L2_PIX_FMT_H264)
+	{
+		// TODO: Add H264 support
+		// uint8_t* p_h264_data;
+		// uint32_t h264_data_size;
+		// uint8_t* p_h264_extra_data;
+		// uint32_t h264_extra_data_size;
+
+		// uint32_t packet_size = sizeof(NDIlib_compressed_packet_t) + h264_data_size + h264_extra_data_size;
+		// NDIlib_compressed_packet_t* p_packet = (NDIlib_compressed_packet_t*)malloc(packet_size);
+		// p_packet->version = NDIlib_compressed_packet_t::version_0;
+		// p_packet->fourCC  = NDIlib_FourCC_type_H264;
+		// p_packet->pts = 0;
+		// p_packet->dts = 0;
 	}
 	else if (format == V4L2_PIX_FMT_MJPEG)
 	{
