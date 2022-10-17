@@ -21,6 +21,8 @@ Avatar Audio Video Processing
         - Run `fuser -fv /dev/snd*` to show what's using the port, most of the time it will be pulseaudio
         - Run `pulseaudio --kill` to turn off pulseaudio
         - Or use 'ndi_recv_pa' to use pulseaudio
+    - [ ] Mixer
+    - [ ] AEC implementation 
 - [ ] NDI video processing
     - [x] MJPEG format support (SO HARD!!!!) Switch to FFMPEG might be the option
     - [x] Send audio along with video
@@ -30,13 +32,13 @@ Avatar Audio Video Processing
     - [x] Crop 
     - [ ] Resolution
     - [x] Solve memory leak in MJPEG mode
-    - [ ] Test with discovery server
+    - [x] Test with discovery server
     - [ ] Try with multiple NICs
 - [ ] AV integration
     - [x] Integrate 3 mics, 3 cameras, 1 speaker on robot side
     - [x] Integrate 1 camera, 1 headphone on operator side
     - [x] assess audio video desync
-    - [ ] AEC implementation
+
 
 - [ ] ffmpeg for video streaming
     - [ ] Tunning ffmpeg for different streaming options: resolution, ratio, codec, fps, stream protocol
