@@ -37,7 +37,7 @@ static unsigned int periods_per_buffer = 10;
 static bool audio_inited = false;
 static int  audio_buffer = 100;
 
-#define now        std::chrono::high_resolution_clock::now();
+#define current_time   std::chrono::high_resolution_clock::now()
 using time_point = std::chrono::high_resolution_clock::time_point;
 using duration   = std::chrono::duration<double>;
 
@@ -400,7 +400,9 @@ int main(int argc, char* argv[])
 	// getchar();
 	NDIlib_video_frame_v2_t video_frame;
 	NDIlib_audio_frame_v2_t audio_frame;
-
+	uint32_t f0 = 0;
+	time_point t0 = current_time;
+	float frame = 0.0;
 
 	for (;;) {
 		// Without this the SDL window will appear as no responding the the OS.
@@ -419,14 +421,30 @@ int main(int argc, char* argv[])
 			{
 				if (!view_inited)
 				{
+					width = video_frame.xres;
+					height = video_frame.yres;
 					if (init_view(video_frame.FourCC) < 0)
 					{
 						errno_exit("Failed to initialize SDL window");
 					}
 					view_inited = true;
 				}
+				auto f1 = total_f.video_frames;
+				if ((f1 - f0) % 30 == 0 && f1 != f0)
+				{
+					time_point t1 = current_time;
+					auto duration = t1 - t0;
+					frame = 30.0 / duration.count() * 1000000000;
+					f0 = f1;
+					t0 = t1;
+				}
+				std::cout << "Framerate: " << frame << std::endl;
 				std::cout << "Total video frame: " << total_f.video_frames << std::endl;
 				std::cout << "Dropped video frame: " << drop_f.video_frames << std::endl;
+				int64_t current = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+				// std::cout << "Current: " << current << std::endl;
+				// std::cout << "Timestamp: " << video_frame.timecode/10 << std::endl;
+				std::cout << "Latency: "<< (current - video_frame.timecode/10) / 1000 << "ms" << std::endl;
 				// printf("Video data received (%dx%d).\n", video_frame.xres, video_frame.yres);
 				render(video_frame.FourCC, video_frame.p_data);
 				// Free buffer queue, necessary or the memory will keep accumulating
@@ -448,20 +466,20 @@ int main(int argc, char* argv[])
 				std::cout << "Dropped audio frame: " << drop_f.audio_frames << std::endl;
 				printf("Audio data received (%d samples).\n", audio_frame.no_samples);
 				// Allocate enough space for 16bpp interleaved buffer
-				time_point start = now;
+				time_point start = current_time;
 				NDIlib_audio_frame_interleaved_16s_t audio_frame_16bpp_interleaved;
 				audio_frame_16bpp_interleaved.reference_level = 0; // We are going to have 20dB of headroom
 				audio_frame_16bpp_interleaved.p_data = new short[audio_frame.no_samples * audio_frame.no_channels];
 				// Convert it
 				NDIlib_util_audio_to_interleaved_16s_v2(&audio_frame, &audio_frame_16bpp_interleaved);
-				// time_point end = now;
+				// time_point end = current_time;
 				// duration d = end - start;
 				// std::cout << "Conversion time: " << d.count() << std::endl;
 
 				// Maybe we don't need to clear buffer?
 				NDIlib_recv_free_audio_v2(pNDI_recv, &audio_frame);
 
-				// start = now;
+				// start = current_time;
 				rc = snd_pcm_writei(handle, audio_frame_16bpp_interleaved.p_data, audio_frame.no_samples);
 				if (rc == -EPIPE)
 				{
@@ -481,7 +499,7 @@ int main(int argc, char* argv[])
 									"short write, write %ld frames\n", rc);
 				}
 				delete[] audio_frame_16bpp_interleaved.p_data;
-				time_point end = now;
+				time_point end = current_time;
 				duration d = end - start;
 				std::cout << "Audio processing time: " << d.count() << std::endl;
 				break;
