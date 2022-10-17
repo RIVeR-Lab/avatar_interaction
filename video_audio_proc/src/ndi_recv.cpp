@@ -128,6 +128,7 @@ static int init_view(NDIlib_FourCC_type_e format)
 		render_fmt = SDL_PIXELFORMAT_UYVY;
 		break;
 	default:
+		printf("Unspported NDI format\n");	
 		return -1;
 	}
 	texture = SDL_CreateTexture(renderer,
@@ -324,7 +325,7 @@ int main(int argc, char* argv[])
 
 	// We now have at least one source, so we create a receiver to look at it.
 	NDIlib_recv_create_v3_t create_settings;
-	create_settings.color_format = (NDIlib_recv_color_format_e)NDIlib_recv_color_format_compressed_v3;
+	create_settings.color_format = NDIlib_recv_color_format_fastest;
 	NDIlib_source_t selected_source;
 	// create_settings.bandwidth = NDIlib_recv_bandwidth_highest;
 	if (source_name == nullptr) 
