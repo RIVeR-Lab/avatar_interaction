@@ -251,31 +251,44 @@ static void get_pixelformat()
 	memset(&desc, 0, sizeof(desc));
 	desc.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
+	std::string format;
 	// iterate over all formats, and prefer MJPEG when available
 	std::cout << "This camera supports the following formats:" << std::endl;
 	while (ioctl(fd, VIDIOC_ENUM_FMT, &desc) == 0) {
 		desc.index++;
-		switch (desc.pixelformat) {
-			case V4L2_PIX_FMT_MJPEG:
-				std::cout << "MJPEG" << std::endl;
-				break;
-			case V4L2_PIX_FMT_NV12:
-				std::cout << "NV12" << std::endl;
-				break;
-			case V4L2_PIX_FMT_YUYV:
-				std::cout << "YUYV" << std::endl;
-				break;
-			case V4L2_PIX_FMT_H264:
-				std::cout << "H264" << std::endl;
-				break;
-			default:
-				std::cout << "Unsupported" << std::endl;
-				break;
+		if (desc.pixelformat == V4L2_PIX_FMT_NV12)
+		{
+			std::cout << "Using NV12" << std::endl;
+			format = "NV12";
+			break;
 		}
+		else if (desc.pixelformat == V4L2_PIX_FMT_MJPEG)
+		{
+			std::cout << "Using MJPEG" << std::endl;
+			format = "MJPEG";
+		}
+		// if (desc.pixelformat == V4L2_PIX_FMT_MJPEG)
+		// switch (desc.pixelformat) {
+		// 	case V4L2_PIX_FMT_MJPEG:
+		// 		std::cout << "MJPEG" << std::endl;
+		// 		break;
+		// 	case V4L2_PIX_FMT_NV12:
+		// 		std::cout << "NV12" << std::endl;
+		// 		break;
+		// 	case V4L2_PIX_FMT_YUYV:
+		// 		std::cout << "YUYV" << std::endl;
+		// 		break;
+		// 	case V4L2_PIX_FMT_H264:
+		// 		std::cout << "H264" << std::endl;
+		// 		break;
+		// 	default:
+		// 		std::cout << "Unsupported" << std::endl;
+		// 		break;
+		// }
 	}
-	std::cout << "Please type a format from above options:" << std::endl;
-	std::string format;
-	std::cin  >> format;
+	// std::cout << "Please type a format from above options:" << std::endl;
+	// std::string format;
+	// std::cin  >> format;
 	if ("MJPEG" == format)
 	{
 		fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG;
