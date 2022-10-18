@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12.0)
 project(video_audio_proc C CXX)
 
-add_compile_options(-std=c++11 -O2 -Wall)
+add_compile_options(-std=c++11 -O0 -Wall)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
@@ -53,6 +53,15 @@ target_link_libraries(alsa_ndi_send
   ${CMAKE_SOURCE_DIR}/3rdparty/lib/x86_64-linux-gnu/libndi.so
 )
 
+add_executable(pa_ndi_send
+  src/pa_ndi_send.cpp
+)
+
+target_link_libraries(pa_ndi_send
+  pulse
+  pulse-simple
+  ${CMAKE_SOURCE_DIR}/3rdparty/lib/x86_64-linux-gnu/libndi.so
+)
 
 add_executable(ndi_recv
   src/ndi_recv.cpp

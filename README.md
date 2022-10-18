@@ -22,7 +22,7 @@ Avatar Audio Video Processing
         - Run `pulseaudio --kill` to turn off pulseaudio
         - Or use 'ndi_recv_pa' to use pulseaudio
     - [ ] Mixer
-    - [ ] AEC implementation 
+    - [ ] AEC implementation with pulseaudio 
 - [ ] NDI video processing
     - [x] MJPEG format support (SO HARD!!!!) Switch to FFMPEG might be the option
     - [x] Send audio along with video
