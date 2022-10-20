@@ -15,13 +15,13 @@ Avatar Audio Video Processing
     - [x] Receive NDI packet
     - [x] Solve underrun issue (solved by adding a delay on purpose)
     - [ ] ~~Try capturing device with MMAP mode~~
-    - [ ] Look into frame drops along the time. (Seems related to how I wrote the receiver)
+    - [ ] ~~Look into frame drops along the time. (Seems related to how I wrote the receiver)~~
     - [x] Look into receiver issue. The speaker and headphone device name not shown in alsa.
     - [x] Resource busy (Alsa) 
         - Run `fuser -fv /dev/snd*` to show what's using the port, most of the time it will be pulseaudio
         - Run `pulseaudio --kill` to turn off pulseaudio
         - Or use 'ndi_recv_pa' to use pulseaudio
-    - [ ] Mixer
+    - [x] Mixer
     - [ ] AEC implementation with pulseaudio 
 - [ ] NDI video processing
     - [x] MJPEG format support (SO HARD!!!!) Switch to FFMPEG might be the option

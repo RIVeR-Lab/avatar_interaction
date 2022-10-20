@@ -3,6 +3,10 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
+#include "opencv2/highgui.hpp"
+
 // (x1, y1) top left point, (x2, y2) bottom right point, stride: bytes of a row
 static void crop_uyvy(const uint8_t *src_buf, uint16_t src_width, uint16_t src_height,
       uint8_t* dst_buf, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2)
@@ -28,4 +32,14 @@ static void crop_uyvy(const uint8_t *src_buf, uint16_t src_width, uint16_t src_h
     dst_buf += width*2;
   }
 
+}
+
+void fill_texture(SDL_Texture * texture, cv::Mat const &mat)
+{
+    unsigned char * texture_data = NULL;
+    int texture_pitch = 0;
+
+    SDL_LockTexture(texture, 0, (void **)&texture_data, &texture_pitch);
+    memcpy(texture_data, mat.data, mat.rows * mat.cols * mat.channels());
+    SDL_UnlockTexture(texture);
 }

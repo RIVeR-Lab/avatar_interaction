@@ -16,10 +16,18 @@
 // ALSA
 #include <alsa/asoundlib.h>
 
+// utils
+#include "utils/video_frame_proc.h"
+// OpenCV
+#include "opencv2/highgui.hpp"
+#include <opencv2/imgproc.hpp>
+#include <opencv2/core.hpp>
+
 // Video config
 static SDL_Window *window = NULL;
 static SDL_Renderer *renderer = NULL;
 static SDL_Texture *texture = NULL;
+static SDL_Texture *text_texture = NULL;
 static unsigned int width = 1920;
 static unsigned int height = 1080;
 bool view_inited = false;
@@ -34,18 +42,37 @@ static snd_pcm_hw_params_t *hw_params;
 static snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
 static snd_pcm_uframes_t frames = 1024;   // frames per period
 static unsigned int periods_per_buffer = 10;
-static bool audio_inited = false;
 static int  audio_buffer = 100;
 
 #define current_time   std::chrono::high_resolution_clock::now()
 using time_point = std::chrono::high_resolution_clock::time_point;
 using duration   = std::chrono::duration<double>;
 
+extern void fill_texture(SDL_Texture * texture, cv::Mat const &mat);
+
 static void errno_exit(const char *s) 
 {
         fprintf(stderr, "%s error %d, %s\n", s, errno, strerror(errno));
         exit(EXIT_FAILURE);
 }
+
+static void blend_texture()
+{
+	cv::Mat text_frame(cv::Size(500,500), CV_8UC4);
+	text_frame.setTo(cv::Scalar(0, 0, 0, 0));
+	//Create text frame here
+	cv::putText(text_frame,
+							"Test",
+							cv::Point(100, 100),
+							cv::FONT_HERSHEY_SIMPLEX,
+							3,
+							cv::Scalar(0, 0, 255, 255*0.4),
+							5,
+							8);
+
+	fill_texture(text_texture, text_frame);
+}
+
 
 void sighandler(int signum) {
 	errno_exit("SIGINT received");
@@ -54,14 +81,17 @@ void sighandler(int signum) {
 static void draw_YUV(uint8_t *buffer)
 {
 	int pitch = 2*width;
-	// SDL_UpdateYUVTexture(texture,
-	// 										 NULL,
-	// 										 buffer, width,
-	// 										 buffer , width / 2,
-	// 										 buffer, width / 2);
+	blend_texture();
+
 	SDL_UpdateTexture(texture, NULL, buffer, pitch);
 	SDL_RenderClear(renderer);
 	SDL_RenderCopy(renderer, texture, NULL, NULL);
+	SDL_Rect dstrect;
+	dstrect.x = 100;
+	dstrect.y = 100;
+	dstrect.h = 500;
+	dstrect.w = 500;
+	SDL_RenderCopy(renderer, text_texture, NULL, &dstrect);
 	SDL_RenderPresent(renderer);
 }
 
@@ -84,6 +114,7 @@ static void draw_NV12(void *buffer)
 	SDL_RenderPresent(renderer);
 }
 
+
 static int init_view(NDIlib_FourCC_type_e format)
 {
 	if (SDL_Init(SDL_INIT_VIDEO)) {
@@ -96,6 +127,14 @@ static int init_view(NDIlib_FourCC_type_e format)
 		printf("SDL_CreateWindowAndRenderer failed: %s\n", SDL_GetError());
 		return -1;
 	}
+
+	text_texture = SDL_CreateTexture(
+			renderer,
+			SDL_PIXELFORMAT_BGRA32,
+			SDL_TEXTUREACCESS_STREAMING,
+			500,
+			500);
+	SDL_SetTextureBlendMode(text_texture, SDL_BLENDMODE_BLEND);
 
 	// TODO: Convert from NDI UYUV to YUYV
 	// if (pixelformat == "YUYV") {

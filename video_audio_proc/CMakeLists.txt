@@ -9,6 +9,7 @@ find_package(SDL2 REQUIRED)
 find_package(SDL2_image REQUIRED)
 find_package(Threads REQUIRED)
 find_package(libconfig++ REQUIRED)
+find_package(OpenCV REQUIRED)
 
 #Find ffmpeg directories
 find_package(PkgConfig)
@@ -27,6 +28,7 @@ include_directories(
   3rdparty/include
   ${SDL2_INCLUDE_DIRS}
   ${SDL2_IMAGE_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
   )
 
 add_executable(v4l2_ndi_send
@@ -72,6 +74,7 @@ target_link_libraries(ndi_recv
   ${SDL2_LIBRARIES}
   ${SDL2_IMAGE_LIBRARIES}
   ${CMAKE_SOURCE_DIR}/3rdparty/lib/x86_64-linux-gnu/libndi.so
+  ${OpenCV_LIBS}
 )
 
 add_executable(ndi_recv_pa
