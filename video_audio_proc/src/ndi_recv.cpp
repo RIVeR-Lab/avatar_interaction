@@ -49,6 +49,7 @@ static unsigned int periods_per_buffer = 10;
 static int  audio_buffer = 100;
 static bool* voice_detected = NULL;
 static char shm_path[15] = "voice_shm";
+static bool echo_cancel = false;
 
 #define current_time   std::chrono::high_resolution_clock::now()
 using time_point = std::chrono::high_resolution_clock::time_point;
@@ -336,7 +337,7 @@ void init_shm()
 
 static int help(char *prog_name)
 {
-	printf("Usage: %s [-i source_name -a snd_output]\n", prog_name);
+	printf("Usage: %s [-i source_name -a snd_output -e [turn on echo cancellation]]\n", prog_name);
 	return 0;
 }
 
@@ -348,7 +349,7 @@ int main(int argc, char* argv[])
 	char* source_name = nullptr;
 	char* audio_output = nullptr;
 
-	while ((opt = getopt(argc, argv, "hi:a:")) != -1)
+	while ((opt = getopt(argc, argv, "hi:a:ec:")) != -1)
 	{
 		switch (opt) {
 			case 'i':
@@ -358,6 +359,10 @@ int main(int argc, char* argv[])
 				audio_output = optarg;
 				init_device(audio_output, SND_PCM_STREAM_PLAYBACK);
 				printf("Audio device initiated\n");
+				break;
+			case 'e':
+				echo_cancel = true;
+				printf("Turned on echo cancellation");
 				break;
 			case 'h':
 				return help(argv[0]);
@@ -427,7 +432,8 @@ int main(int argc, char* argv[])
 	}
 
 	// init shared memory for voice detection flag
-	init_shm();
+	if(echo_cancel)
+		init_shm();
 
 	SDL_Event event;
 	snd_pcm_sframes_t rc;
@@ -514,7 +520,6 @@ int main(int argc, char* argv[])
 				// Audio data
 			case NDIlib_frame_type_audio:
 			{
-				printf("Current voice: %d\n", *voice_detected);
 				if (audio_output == nullptr)
 				{
 					printf("Audio output not specified, skip\n");
@@ -539,11 +544,11 @@ int main(int argc, char* argv[])
 
 				// start = current_time;
 				duration silence_d = current_time - silence_timer;
-				if (*voice_detected)
+				if (echo_cancel && *voice_detected)
 				{
 					silence_timer = current_time;
 				}
-				if (silence_d.count() < 1)
+				if (echo_cancel && silence_d.count() < 1)
 				{
 					// Mute the speaker
 					memset(audio_frame_16bpp_interleaved.p_data, 0, 4*audio_frame.no_samples);

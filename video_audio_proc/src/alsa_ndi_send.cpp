@@ -173,12 +173,14 @@ int init_device(char* snd, snd_pcm_stream_t stream_t)
 
 void init_shm()
 {
+  // The shared memory file will be created at /dev/shm/<shm_path> by default
   int fd = shm_open(shm_path, O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR);
   if (fd == -1)
   {
     printf("Shared memory error: %s\n", strerror(errno));
   }
-
+  
+  // File size must be allocated first or Bus error would be thrown
   if (ftruncate(fd, sizeof(bool)) == -1)
     printf("ftruncate error: %s\n", strerror(errno));
 
