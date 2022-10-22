@@ -331,6 +331,10 @@ int main(int argc, char* argv[])
 	char* source_name = nullptr;
 	char* audio_output = nullptr;
 
+	#ifdef DEBUG_PRINT
+		printf("Debug message\n");
+	#endif
+
 	while ((opt = getopt(argc, argv, "hi:a:")) != -1)
 	{
 		switch (opt) {
@@ -442,11 +446,35 @@ int main(int argc, char* argv[])
 	time_point t0 = current_time;
 	float frame = 0.0;
 
+	bool full_screen = false;
 	for (;;) {
 		// Without this the SDL window will appear as no responding the the OS.
 		while (SDL_PollEvent(&event))
-		if (event.type == SDL_QUIT)
-			return 0;
+		{
+			switch(event.type)
+			{
+				case SDL_QUIT:
+					return 0;
+			 	case SDL_KEYDOWN:
+					if (event.key.keysym.scancode == SDL_SCANCODE_F)
+					{
+						full_screen = !full_screen;
+						if (full_screen)
+						{
+							SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
+						}
+						else
+						{
+							SDL_SetWindowFullscreen(window, 0);
+						}
+					}
+					if (event.key.keysym.scancode == SDL_SCANCODE_Q)
+					{
+						return 0;
+					}
+				break;
+			}
+		}
 		NDIlib_recv_get_performance(pNDI_recv, &total_f, &drop_f);
 		switch (NDIlib_recv_capture_v2(pNDI_recv, &video_frame, &audio_frame, nullptr, 5000)) {
 			// No data
