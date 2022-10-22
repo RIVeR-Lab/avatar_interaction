@@ -36,9 +36,6 @@ extern "C" {
 	#include <libswscale/swscale.h>
 }
 
-extern void crop_uyvy(const uint8_t *src_buf, uint16_t src_width, uint16_t src_height,
-      uint8_t* dst_buf, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2);
-
 static unsigned int crop_x1, crop_x2, crop_y1, crop_y2;
 static bool cropping = false;
 
@@ -161,7 +158,7 @@ static void send_NDI(unsigned int format)
 		if (cropping)
 		{
 			std::cout << "Cropping" << std::endl;
-			crop_uyvy((uint8_t *)decoded_mjpeg_buf, fmt_width, fmt_height, cropped_buf, crop_x1, crop_y1, crop_x2, crop_y2);
+			video_frame_proc::crop_uyvy((uint8_t *)decoded_mjpeg_buf, fmt_width, fmt_height, cropped_buf, crop_x1, crop_y1, crop_x2, crop_y2);
 			NDI_video_frame.p_data = cropped_buf;
 		}			
 		else

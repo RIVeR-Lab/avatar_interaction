@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <atomic>
 #include <string>
+#include <math.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -23,7 +24,7 @@
 #include <alsa/asoundlib.h>
 
 static int err;
-static char *buffer;
+static short *buffer;
 static unsigned int rate = 48000;
 static unsigned int channel = 2;
 static snd_pcm_t *handle;
@@ -37,6 +38,17 @@ static char output_name[255] = "";
 
 static std::atomic<bool> exit_loop(false);
 static void sigint_handler(int) { exit_loop = true; }
+
+double rms(short *buffer, int buffer_size)
+{
+    int i;
+    long int square_sum = 0.0;
+    for(i=0; i<buffer_size; i++)
+        square_sum += (buffer[i] * buffer[i]);
+
+    double result = sqrt(square_sum/buffer_size);
+    return result;
+}
 
 int init_device(char* snd, snd_pcm_stream_t stream_t)
 {
@@ -115,11 +127,11 @@ int init_device(char* snd, snd_pcm_stream_t stream_t)
 	printf("Set frame size to: %lu\n", frames);
 
 	/* Use a buffer large enough to hold one period */
-  snd_pcm_uframes_t period_size = frames * 4; /* 2 bytes/sample, 2 channels */
+  snd_pcm_uframes_t period_size = frames * 2; /* 2 bytes/sample, 2 channels */
 	printf("Actual period size: %lu \n", period_size);
 
   // have a buffer with 2 periods
-  buffer = (char *) malloc(period_size * periods_per_buffer);
+  buffer = (short *) malloc(period_size * periods_per_buffer);
 
 	// latency is then calculated by 
 	// bytes_of_buffer / (sample_rate * bytes_per_frame)
@@ -238,6 +250,7 @@ int main(int argc, char* argv[])
     } else if (rc != (int)frames) {
       fprintf(stderr, "short read, read %d frames\n", rc);
     }
+    printf("Volume: %.2f", rms(buffer, frames));
 		NDI_audio_frame.p_data = (int16_t*)buffer;
 		NDIlib_util_send_send_audio_interleaved_16s(pNDI_send, &NDI_audio_frame);
 

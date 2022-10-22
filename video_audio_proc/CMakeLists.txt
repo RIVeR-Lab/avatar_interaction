@@ -25,7 +25,7 @@ endif (PKG_CONFIG_FOUND)
 
 include_directories(
   include
-  3rdparty/include
+  3rdparty/ndi/include
   ${SDL2_INCLUDE_DIRS}
   ${SDL2_IMAGE_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
@@ -39,7 +39,7 @@ target_link_libraries(v4l2_ndi_send
   ${SDL2_LIBRARIES}
   ${SDL2_IMAGE_LIBRARIES}
   ${LIBCONFIG++_LIBRARIES}
-  ${CMAKE_SOURCE_DIR}/3rdparty/lib/x86_64-linux-gnu/libndi.so
+  ${CMAKE_SOURCE_DIR}/3rdparty/ndi/lib/x86_64-linux-gnu/libndi.so
   avformat
   avcodec
   avutil
@@ -52,7 +52,7 @@ add_executable(alsa_ndi_send
 
 target_link_libraries(alsa_ndi_send
   libasound.so
-  ${CMAKE_SOURCE_DIR}/3rdparty/lib/x86_64-linux-gnu/libndi.so
+  ${CMAKE_SOURCE_DIR}/3rdparty/ndi/lib/x86_64-linux-gnu/libndi.so
 )
 
 add_executable(pa_ndi_send
@@ -62,7 +62,7 @@ add_executable(pa_ndi_send
 target_link_libraries(pa_ndi_send
   pulse
   pulse-simple
-  ${CMAKE_SOURCE_DIR}/3rdparty/lib/x86_64-linux-gnu/libndi.so
+  ${CMAKE_SOURCE_DIR}/3rdparty/ndi/lib/x86_64-linux-gnu/libndi.so
 )
 
 add_executable(ndi_recv
@@ -73,7 +73,7 @@ target_link_libraries(ndi_recv
   libasound.so
   ${SDL2_LIBRARIES}
   ${SDL2_IMAGE_LIBRARIES}
-  ${CMAKE_SOURCE_DIR}/3rdparty/lib/x86_64-linux-gnu/libndi.so
+  ${CMAKE_SOURCE_DIR}/3rdparty/ndi/lib/x86_64-linux-gnu/libndi.so
   ${OpenCV_LIBS}
 )
 
@@ -86,7 +86,7 @@ target_link_libraries(ndi_recv_pa
   pulse-simple
   ${SDL2_LIBRARIES}
   ${SDL2_IMAGE_LIBRARIES}
-  ${CMAKE_SOURCE_DIR}/3rdparty/lib/x86_64-linux-gnu/libndi.so
+  ${CMAKE_SOURCE_DIR}/3rdparty/ndi/lib/x86_64-linux-gnu/libndi.so
 )
 
 add_executable(ndi_send
@@ -96,7 +96,7 @@ add_executable(ndi_send
 target_link_libraries(ndi_send
   ${SDL2_LIBRARIES}
   ${SDL2_IMAGE_LIBRARIES}
-  ${CMAKE_SOURCE_DIR}/3rdparty/lib/x86_64-linux-gnu/libndi.so
+  ${CMAKE_SOURCE_DIR}/3rdparty/ndi/lib/x86_64-linux-gnu/libndi.so
   ${LIBCONFIG++_LIBRARIES}
   avformat
   avcodec
@@ -106,22 +106,14 @@ target_link_libraries(ndi_send
   Threads::Threads
 )
 
-add_executable(alsa_capture
-  src/alsa_capture.c
-)
-
-target_link_libraries(alsa_capture
-  libasound.so
-)
-
-file(GLOB audio_test RELATIVE ${CMAKE_SOURCE_DIR} "src/audio_*.c")
-foreach(test_src ${audio_test})
-  get_filename_component(target ${test_src} NAME_WE)
-  message(${target})
-  add_executable(${target}
-    ${test_src}
-  )
-  target_link_libraries(${target}
-    libasound.so 
-  )
-endforeach()
+# file(GLOB audio_test RELATIVE ${CMAKE_SOURCE_DIR} "src/audio_*.c")
+# foreach(test_src ${audio_test})
+#   get_filename_component(target ${test_src} NAME_WE)
+#   message(${target})
+#   add_executable(${target}
+#     ${test_src}
+#   )
+#   target_link_libraries(${target}
+#     libasound.so 
+#   )
+# endforeach()

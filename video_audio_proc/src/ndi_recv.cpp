@@ -48,8 +48,6 @@ static int  audio_buffer = 100;
 using time_point = std::chrono::high_resolution_clock::time_point;
 using duration   = std::chrono::duration<double>;
 
-extern void fill_texture(SDL_Texture * texture, cv::Mat const &mat);
-
 static void errno_exit(const char *s) 
 {
         fprintf(stderr, "%s error %d, %s\n", s, errno, strerror(errno));
@@ -70,7 +68,7 @@ static void blend_texture()
 							5,
 							8);
 
-	fill_texture(text_texture, text_frame);
+	video_frame_proc::fill_texture(text_texture, text_frame);
 }
 
 
