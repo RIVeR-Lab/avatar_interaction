@@ -22,7 +22,7 @@ Avatar Audio Video Processing
         - Run `pulseaudio --kill` to turn off pulseaudio
         - Or use 'ndi_recv_pa' to use pulseaudio
     - [x] Mixer
-    - [ ] AEC implementation with pulseaudio 
+    - [ ] ~~AEC implementation with pulseaudio~~ (Solved with a RMS based echo cancellation)
 - [ ] NDI video processing
     - [x] MJPEG format support (SO HARD!!!!) Switch to FFMPEG might be the option
     - [x] Send audio along with video
@@ -38,6 +38,10 @@ Avatar Audio Video Processing
     - [x] Integrate 3 mics, 3 cameras, 1 speaker on robot side
     - [x] Integrate 1 camera, 1 headphone on operator side
     - [x] assess audio video desync
+
+- [ ] UI intergration
+    - [x] Template created with font color/size/orientation/background color support
+    - [ ] ROS integration
 
 
 - [ ] ffmpeg for video streaming
