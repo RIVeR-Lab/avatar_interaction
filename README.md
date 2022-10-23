@@ -30,6 +30,7 @@ Avatar Audio Video Processing
     - [x] How to generate 60fps video?? Maybe play with the buffer too? (solved with better router)
     - [ ] ~~YUYV format support~~
     - [x] Crop 
+        - [ ] SDL render issue with cropped video
     - [ ] Resolution
     - [x] Solve memory leak in MJPEG mode
     - [x] Test with discovery server
