@@ -38,7 +38,7 @@ extern "C" {
 
 static unsigned int crop_x1, crop_x2, crop_y1, crop_y2;
 static bool cropping = false;
-#define AUTO_SELECT_VIDEO_CODEC
+#define MANUAL_SELECT_VIDEO_CODEC
 #define now        std::chrono::high_resolution_clock::now();
 using time_point = std::chrono::high_resolution_clock::time_point;
 using duration   = std::chrono::duration<double>;
@@ -291,7 +291,6 @@ static void get_pixelformat()
 	}
 #ifdef MANUAL_SELECT_VIDEO_CODEC
 	std::cout << "Please type a format from above options:" << std::endl;
-	std::string format;
 	std::cin >> format;
 #endif
 	if ("MJPEG" == format)
