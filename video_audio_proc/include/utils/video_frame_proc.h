@@ -11,6 +11,18 @@
 namespace video_frame_proc
 {
   // (x1, y1) top left point, (x2, y2) bottom right point, stride: bytes of a row
+  /**
+   * @brief Crop an image encoded in UYUV. This is majorly for NDI.
+   * 
+   * @param src_buf source frame buffer
+   * @param src_width source frame width
+   * @param src_height sourc frame height
+   * @param dst_buf destination frame buffer
+   * @param x1 upper left pixel of the cropping region
+   * @param y1 lower left pixel of the cropping region
+   * @param x2 upper right pixel of the cropping region
+   * @param y2 lower right pixel of the cropping region
+   */
   void crop_uyvy(const uint8_t *src_buf, uint16_t src_width, uint16_t src_height,
                  uint8_t *dst_buf, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2)
   {
@@ -36,6 +48,12 @@ namespace video_frame_proc
     }
   }
 
+  /**
+   * @brief Fill an SDL texture with OpenCV Mat type data
+   * 
+   * @param texture destination SDL texture
+   * @param mat source OpenCV mat data
+   */
   void fill_texture(SDL_Texture *texture, cv::Mat const &mat)
   {
     unsigned char *texture_data = NULL;
