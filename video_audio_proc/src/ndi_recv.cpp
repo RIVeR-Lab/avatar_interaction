@@ -5,6 +5,8 @@
 #include <SDL2/SDL.h>
 // sudo apt install libsdl2-image-dev
 #include <SDL2/SDL_image.h>
+// sudo apt install libsdl2-ttf-dev
+#include <SDL2/SDL_ttf.h>
 #include <string>
 #include <iostream>
 #include <csignal>
@@ -26,6 +28,10 @@
 #include "opencv2/highgui.hpp"
 #include <opencv2/imgproc.hpp>
 #include <opencv2/core.hpp>
+
+// ROS
+// #include <ros/ros.h>
+// #include <std_msgs/String.h>
 
 // Video config
 static SDL_Window *window = NULL;
@@ -50,10 +56,12 @@ static int  audio_buffer = 100;
 static bool* voice_detected = NULL;
 static char shm_path[15] = "voice_shm";
 static bool echo_cancel = false;
+static SDL_Rect ui_rect;
 
 #define current_time   std::chrono::high_resolution_clock::now()
 using time_point = std::chrono::high_resolution_clock::time_point;
 using duration   = std::chrono::duration<double>;
+
 
 static void errno_exit(const char *s) 
 {
@@ -61,42 +69,47 @@ static void errno_exit(const char *s)
         exit(EXIT_FAILURE);
 }
 
-static void blend_texture()
-{
-	cv::Mat text_frame(cv::Size(500,500), CV_8UC4);
-	text_frame.setTo(cv::Scalar(0, 0, 0, 0));
-	//Create text frame here
-	cv::putText(text_frame,
-							"Test",
-							cv::Point(100, 100),
-							cv::FONT_HERSHEY_SIMPLEX,
-							3,
-							cv::Scalar(0, 0, 255, 255*0.4),
-							5,
-							8);
-
-	video_frame_proc::fill_texture(text_texture, text_frame);
-}
-
 
 void sighandler(int signum) {
 	errno_exit("SIGINT received");
 }
+static void init_ui()
+{
+	unsigned int ui_width = 1000;
+	unsigned int ui_height = 100;
+	unsigned int ui_box_x  = 100;
+	unsigned int ui_box_y  = 0;
+
+	ui_rect.x = ui_box_x;
+	ui_rect.y = ui_box_y;
+	ui_rect.h = ui_height;
+	ui_rect.w = ui_width;
+}
+
 
 static void draw_YUV(uint8_t *buffer)
 {
 	int pitch = 2*width;
-	blend_texture();
+	init_ui();
+	
+	TTF_Font* Font = TTF_OpenFont("/usr/share/fonts/truetype/abyssinica/AbyssinicaSIL-Regular.ttf", 100);
+	if (Font == NULL)
+	{
+		printf("Failed to get specified font! Error: %s\n", TTF_GetError());
+		exit(-1);
+	}
+	SDL_Color fg = {255, 0, 0, 125};
+	SDL_Color bg = {0, 0, 0, 125};
+	SDL_Surface *surfaceMessage =
+			TTF_RenderText_Shaded(Font, "Put your text here: 1234",fg, bg);
+	SDL_Texture *Message = SDL_CreateTextureFromSurface(renderer, surfaceMessage);
 
 	SDL_UpdateTexture(texture, NULL, buffer, pitch);
 	SDL_RenderClear(renderer);
 	SDL_RenderCopy(renderer, texture, NULL, NULL);
-	SDL_Rect dstrect;
-	dstrect.x = 100;
-	dstrect.y = 100;
-	dstrect.h = 500;
-	dstrect.w = 500;
-	SDL_RenderCopy(renderer, text_texture, NULL, &dstrect);
+	// SDL_RenderCopy(renderer, Message, NULL, &ui_rect);
+	SDL_Point center = {100 , 100};
+	SDL_RenderCopyEx(renderer, Message, NULL, &ui_rect, -0, &center, SDL_FLIP_NONE);
 	SDL_RenderPresent(renderer);
 }
 
@@ -200,7 +213,6 @@ static int render(NDIlib_FourCC_type_e format, uint8_t* buffer)
 
 	return 0;
 }
-
 
 int init_device(char* snd, snd_pcm_stream_t stream_t)
 {
@@ -349,7 +361,11 @@ int main(int argc, char* argv[])
 	char* source_name = nullptr;
 	char* audio_output = nullptr;
 
-	while ((opt = getopt(argc, argv, "hi:a:ec:")) != -1)
+	#ifdef DEBUG_PRINT
+		printf("Debug message\n");
+	#endif
+
+	while ((opt = getopt(argc, argv, "hi:a:e:")) != -1)
 	{
 		switch (opt) {
 			case 'i':
@@ -376,6 +392,7 @@ int main(int argc, char* argv[])
 	if (!NDIlib_initialize())
 		return 0;
 	
+	TTF_Init();
 
 	// Create a finder
 	NDIlib_find_instance_t pNDI_find = NDIlib_find_create_v3();
@@ -467,11 +484,35 @@ int main(int argc, char* argv[])
 	float frame = 0.0;
 
 	time_point silence_timer = current_time;
+	bool full_screen = false;
 	for (;;) {
 		// Without this the SDL window will appear as no responding the the OS.
 		while (SDL_PollEvent(&event))
-		if (event.type == SDL_QUIT)
-			return 0;
+		{
+			switch(event.type)
+			{
+				case SDL_QUIT:
+					return 0;
+			 	case SDL_KEYDOWN:
+					if (event.key.keysym.scancode == SDL_SCANCODE_F)
+					{
+						full_screen = !full_screen;
+						if (full_screen)
+						{
+							SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
+						}
+						else
+						{
+							SDL_SetWindowFullscreen(window, 0);
+						}
+					}
+					if (event.key.keysym.scancode == SDL_SCANCODE_Q)
+					{
+						return 0;
+					}
+				break;
+			}
+		}
 		NDIlib_recv_get_performance(pNDI_recv, &total_f, &drop_f);
 		switch (NDIlib_recv_capture_v2(pNDI_recv, &video_frame, &audio_frame, nullptr, 5000)) {
 			// No data

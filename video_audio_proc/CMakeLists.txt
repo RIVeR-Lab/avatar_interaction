@@ -7,9 +7,15 @@ set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
 find_package(SDL2 REQUIRED)
 find_package(SDL2_image REQUIRED)
+find_package(SDL2TTF REQUIRED)
 find_package(Threads REQUIRED)
 find_package(libconfig++ REQUIRED)
 find_package(OpenCV REQUIRED)
+find_package(catkin REQUIRED COMPONENTS
+  roscpp
+  rospy
+  std_msgs
+)
 
 #Find ffmpeg directories
 find_package(PkgConfig)
@@ -28,6 +34,7 @@ include_directories(
   3rdparty/ndi/include
   ${SDL2_INCLUDE_DIRS}
   ${SDL2_IMAGE_INCLUDE_DIRS}
+  ${SDL2TTF_INCLUDE_DIR}
   ${OpenCV_INCLUDE_DIRS}
   )
 
@@ -74,9 +81,11 @@ target_link_libraries(ndi_recv
   libasound.so
   ${SDL2_LIBRARIES}
   ${SDL2_IMAGE_LIBRARIES}
+  ${SDL2TTF_LIBRARY}
   ${CMAKE_SOURCE_DIR}/3rdparty/ndi/lib/x86_64-linux-gnu/libndi.so
   ${OpenCV_LIBS}
   rt
+  ${catkin_LIBRARIES}
 )
 
 add_executable(ndi_recv_pa

@@ -38,7 +38,7 @@ extern "C" {
 
 static unsigned int crop_x1, crop_x2, crop_y1, crop_y2;
 static bool cropping = false;
-
+#define MANUAL_SELECT_VIDEO_CODEC
 #define now        std::chrono::high_resolution_clock::now();
 using time_point = std::chrono::high_resolution_clock::time_point;
 using duration   = std::chrono::duration<double>;
@@ -249,10 +249,11 @@ static void get_pixelformat()
 	desc.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
 	std::string format;
-	// iterate over all formats, and prefer MJPEG when available
+	// iterate over all formats, and prefer NV12 or MJPEG when available
 	std::cout << "This camera supports the following formats:" << std::endl;
 	while (ioctl(fd, VIDIOC_ENUM_FMT, &desc) == 0) {
 		desc.index++;
+#ifdef AUTO_SELECT_VIDEO_CODEC
 		if (desc.pixelformat == V4L2_PIX_FMT_NV12)
 		{
 			std::cout << "Using NV12" << std::endl;
@@ -264,28 +265,34 @@ static void get_pixelformat()
 			std::cout << "Using MJPEG" << std::endl;
 			format = "MJPEG";
 		}
-		// if (desc.pixelformat == V4L2_PIX_FMT_MJPEG)
-		// switch (desc.pixelformat) {
-		// 	case V4L2_PIX_FMT_MJPEG:
-		// 		std::cout << "MJPEG" << std::endl;
-		// 		break;
-		// 	case V4L2_PIX_FMT_NV12:
-		// 		std::cout << "NV12" << std::endl;
-		// 		break;
-		// 	case V4L2_PIX_FMT_YUYV:
-		// 		std::cout << "YUYV" << std::endl;
-		// 		break;
-		// 	case V4L2_PIX_FMT_H264:
-		// 		std::cout << "H264" << std::endl;
-		// 		break;
-		// 	default:
-		// 		std::cout << "Unsupported" << std::endl;
-		// 		break;
-		// }
+#endif
+
+#ifdef MANUAL_SELECT_VIDEO_CODEC
+		if (desc.pixelformat == V4L2_PIX_FMT_MJPEG)
+			switch (desc.pixelformat)
+			{
+			case V4L2_PIX_FMT_MJPEG:
+				std::cout << "MJPEG" << std::endl;
+				break;
+			case V4L2_PIX_FMT_NV12:
+				std::cout << "NV12" << std::endl;
+				break;
+			case V4L2_PIX_FMT_YUYV:
+				std::cout << "YUYV" << std::endl;
+				break;
+			case V4L2_PIX_FMT_H264:
+				std::cout << "H264" << std::endl;
+				break;
+			default:
+				std::cout << "Unsupported" << std::endl;
+				break;
+			}
+#endif
 	}
-	// std::cout << "Please type a format from above options:" << std::endl;
-	// std::string format;
-	// std::cin  >> format;
+#ifdef MANUAL_SELECT_VIDEO_CODEC
+	std::cout << "Please type a format from above options:" << std::endl;
+	std::cin >> format;
+#endif
 	if ("MJPEG" == format)
 	{
 		fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG;
@@ -699,6 +706,12 @@ static int help(const char *prog_name)
 	return 0;
 }
 
+/**
+ * @brief Initialize parameters for video capture using the given config file.
+ * 
+ * @param config_path configuration file path
+ * @return int success
+ */
 static int init_config(const char * config_path)
 {
 	using namespace libconfig;
