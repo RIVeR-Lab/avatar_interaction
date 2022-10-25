@@ -42,6 +42,7 @@ static unsigned int width = 1920;
 static unsigned int height = 1080;
 bool view_inited = false;
 
+
 // Audio config
 static int err;
 static char *buffer;
@@ -57,6 +58,7 @@ static bool* voice_detected = NULL;
 static char shm_path[15] = "voice_shm";
 static bool echo_cancel = false;
 static SDL_Rect ui_rect;
+static double mute_delay = 1.0;
 
 #define current_time   std::chrono::high_resolution_clock::now()
 using time_point = std::chrono::high_resolution_clock::time_point;
@@ -91,8 +93,9 @@ static void draw_YUV(uint8_t *buffer)
 {
 	int pitch = 2*width;
 	init_ui();
-	
+	// UI
 	TTF_Font* Font = TTF_OpenFont("/usr/share/fonts/truetype/abyssinica/AbyssinicaSIL-Regular.ttf", 100);
+
 	if (Font == NULL)
 	{
 		printf("Failed to get specified font! Error: %s\n", TTF_GetError());
@@ -111,6 +114,10 @@ static void draw_YUV(uint8_t *buffer)
 	SDL_Point center = {100 , 100};
 	SDL_RenderCopyEx(renderer, Message, NULL, &ui_rect, -0, &center, SDL_FLIP_NONE);
 	SDL_RenderPresent(renderer);
+	SDL_FreeSurface(surfaceMessage);
+	SDL_DestroyTexture(Message);
+	TTF_CloseFont(Font);
+
 }
 
 static void draw_BGRA(void *buffer)
@@ -589,7 +596,7 @@ int main(int argc, char* argv[])
 				{
 					silence_timer = current_time;
 				}
-				if (echo_cancel && silence_d.count() < 1)
+				if (echo_cancel && silence_d.count() < mute_delay)
 				{
 					// Mute the speaker
 					memset(audio_frame_16bpp_interleaved.p_data, 0, 4*audio_frame.no_samples);
@@ -631,7 +638,6 @@ int main(int argc, char* argv[])
 
 	// Not required, but nice
 	NDIlib_destroy();
-
 	// Finished
 	return 0;
 }

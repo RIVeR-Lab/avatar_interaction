@@ -38,7 +38,7 @@ extern "C" {
 
 static unsigned int crop_x1, crop_x2, crop_y1, crop_y2;
 static bool cropping = false;
-#define MANUAL_SELECT_VIDEO_CODEC
+#define AUTO_SELECT_VIDEO_CODEC
 #define now        std::chrono::high_resolution_clock::now();
 using time_point = std::chrono::high_resolution_clock::time_point;
 using duration   = std::chrono::duration<double>;

@@ -28,7 +28,7 @@ static unsigned int periods_per_buffer = 2;
 static char snd_name[255] = "";
 static char playback[255] = "";
 static char output_name[255] = "";
-static float voice_thred = 1500;
+static float voice_thred = 1200;
 static char shm_path[25] = "voice_shm";
 static bool *voice_detected = NULL;
 
