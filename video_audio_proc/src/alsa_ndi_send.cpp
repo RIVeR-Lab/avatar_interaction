@@ -6,17 +6,10 @@
 #include <atomic>
 #include <string>
 #include <math.h>
-
-#ifdef _WIN32
-#include <windows.h>
-
-#ifdef _WIN64
-#pragma comment(lib, "Processing.NDI.Lib.Advanced.x64.lib")
-#else // _WIN64
-#pragma comment(lib, "Processing.NDI.Lib.Advanced.x86.lib")
-#endif // _WIN64
-
-#endif
+#include <sys/mman.h>
+#include <sys/stat.h> /* For mode constants */
+#include <fcntl.h>    /* For O_* constants */
+#include <errno.h>
 
 #include <Processing.NDI.Advanced.h>
 
@@ -35,9 +28,16 @@ static unsigned int periods_per_buffer = 2;
 static char snd_name[255] = "";
 static char playback[255] = "";
 static char output_name[255] = "";
+static float voice_thred = 1500;
+static char shm_path[25] = "voice_shm";
+static bool *voice_detected = NULL;
 
 static std::atomic<bool> exit_loop(false);
-static void sigint_handler(int) { exit_loop = true; }
+static void sigint_handler(int)
+{
+  shm_unlink(shm_path);
+  exit_loop = true;
+}
 
 double rms(short *buffer, int buffer_size)
 {
@@ -171,6 +171,27 @@ int init_device(char* snd, snd_pcm_stream_t stream_t)
 
 }
 
+void init_shm()
+{
+  // The shared memory file will be created at /dev/shm/<shm_path> by default
+  int fd = shm_open(shm_path, O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR);
+  if (fd == -1)
+  {
+    printf("Shared memory error: %s\n", strerror(errno));
+  }
+  
+  // File size must be allocated first or Bus error would be thrown
+  if (ftruncate(fd, sizeof(bool)) == -1)
+    printf("ftruncate error: %s\n", strerror(errno));
+
+  voice_detected = (bool*)mmap(NULL, sizeof(bool), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+  if (voice_detected == (void*)-1)
+  {
+    printf("MMAP error: %s\n", strerror(errno));
+  }
+  *voice_detected = false;
+  printf("Shared memory initiated\n");
+}
 
 static int help(char *prog_name)
 {
@@ -218,6 +239,7 @@ int main(int argc, char* argv[])
 
 	// Catch interrupt so that we can shut down gracefully
 	signal(SIGINT, sigint_handler);
+  init_shm();
 
 	// Create an NDI source that is called "My 16bpp Audio" and is clocked to the audio.
 	NDIlib_send_create_t NDI_send_create_desc;
@@ -237,6 +259,7 @@ int main(int argc, char* argv[])
 	// NDI_audio_frame.p_data = (short*)malloc(1920 * 2 * sizeof(short));
 
 	int rc;
+  int a = 0;
   while (!exit_loop) {
     rc = snd_pcm_readi(handle, buffer, frames);
     if (rc == -EPIPE) {
@@ -250,7 +273,16 @@ int main(int argc, char* argv[])
     } else if (rc != (int)frames) {
       fprintf(stderr, "short read, read %d frames\n", rc);
     }
-    printf("Volume: %.2f", rms(buffer, frames));
+    double volume = rms(buffer, frames)*0.45255;
+    if (volume > voice_thred)
+    {
+      *voice_detected = true;
+      printf("Detected sound %f\n", volume);
+    }
+    else
+    {
+      *voice_detected = false;
+    }
 		NDI_audio_frame.p_data = (int16_t*)buffer;
 		NDIlib_util_send_send_audio_interleaved_16s(pNDI_send, &NDI_audio_frame);
 

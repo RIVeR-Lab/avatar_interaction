@@ -12,6 +12,11 @@
 #include <stdio.h>
 #include <atomic>
 #include <thread>
+#include <sys/mman.h>
+#include <sys/stat.h> /* For mode constants */
+#include <fcntl.h>    /* For O_* constants */
+#include <errno.h>
+
 
 // PULSEAUDIO 
 #include <alsa/asoundlib.h>
@@ -47,8 +52,11 @@ static pa_simple *s = NULL;
 int ret = 1;
 int error;
 static int  audio_buffer = 100;
+static bool echo_cancel = true;
+static bool* voice_detected = NULL;
+static char shm_path[15] = "voice_shm";
 
-#define now        std::chrono::high_resolution_clock::now();
+#define current_time   std::chrono::high_resolution_clock::now()
 using time_point = std::chrono::high_resolution_clock::time_point;
 using duration   = std::chrono::duration<double>;
 
@@ -177,9 +185,19 @@ void init_audio(char* playback_dev)
 	}
 }
 
+void init_shm()
+{
+  int fd = shm_open(shm_path, O_RDONLY, 0);
+  if (fd == -1)
+  {
+    printf("Shared memory error: %s\n", strerror(errno));
+  }
+  voice_detected = (bool*)mmap(NULL, sizeof(bool), PROT_READ, MAP_SHARED, fd, 0);
+}
+
 static int help(char *prog_name)
 {
-	printf("Usage: %s [-i source_name -a snd_output]\n", prog_name);
+	printf("Usage: %s [-i source_name -a snd_output -e [echo_cancel] ]\n", prog_name);
 	return 0;
 }
 
@@ -191,7 +209,7 @@ int main(int argc, char* argv[])
 	char* source_name = nullptr;
 	char* audio_output = nullptr;
 
-	while ((opt = getopt(argc, argv, "hi:a:")) != -1)
+	while ((opt = getopt(argc, argv, "hi:a:e:")) != -1)
 	{
 		switch (opt) {
 			case 'i':
@@ -201,6 +219,9 @@ int main(int argc, char* argv[])
 				audio_output = optarg;
 				init_audio(audio_output);
 				printf("Audio device initiated\n");
+				break;
+			case 'e':
+				echo_cancel = true;
 				break;
 			case 'h':
 				return help(argv[0]);
@@ -269,7 +290,9 @@ int main(int argc, char* argv[])
 		}
 	}
 
-
+	// init shared memory for voice detection flag
+	if(echo_cancel)
+		init_shm();
 
 	SDL_Event event;
 	snd_pcm_sframes_t rc;
@@ -299,6 +322,7 @@ int main(int argc, char* argv[])
 	NDIlib_video_frame_v2_t video_frame;
 	NDIlib_audio_frame_v2_t audio_frame;
 
+	time_point silence_timer = current_time;
 	pa_simple_flush (s, &error);
 	for (;;) {
 		// Without this the SDL window will appear as no responding the the OS.
@@ -346,7 +370,7 @@ int main(int argc, char* argv[])
 				std::cout << "Dropped audio frame: " << drop_f.audio_frames << std::endl;
 				printf("Audio data received (%d samples).\n", audio_frame.no_samples);
 				// Allocate enough space for 16bpp interleaved buffer
-				time_point start = now;
+				time_point start = current_time;
 				NDIlib_audio_frame_interleaved_16s_t audio_frame_16bpp_interleaved;
 				audio_frame_16bpp_interleaved.reference_level = 0; // We are going to have 20dB of headroom
 				audio_frame_16bpp_interleaved.p_data = new short[audio_frame.no_samples * audio_frame.no_channels];
@@ -366,6 +390,18 @@ int main(int argc, char* argv[])
             printf(": pa_simple_get_latency() failed: %s\n", pa_strerror(error));
 						exit(-1);
         }
+
+				duration silence_d = current_time - silence_timer;
+				if (echo_cancel && *voice_detected)
+				{
+					silence_timer = current_time;
+				}
+				if (echo_cancel && silence_d.count() < 1)
+				{
+					// Mute the speaker
+					memset(audio_frame_16bpp_interleaved.p_data, 0, 4*audio_frame.no_samples);
+					printf("Mute\n");
+				}
  
         printf("%0.0f usec    \n", (float)latency);
 				if (pa_simple_write(s, audio_frame_16bpp_interleaved.p_data, audio_frame_16bpp_interleaved.no_samples*4, &error) < 0)
@@ -374,7 +410,7 @@ int main(int argc, char* argv[])
 					exit(-1);
 				}
 				delete[] audio_frame_16bpp_interleaved.p_data;
-				time_point end = now;
+				time_point end = current_time;
 				duration d = end - start;
 				std::cout << "Audio processing time: " << d.count() << std::endl;
 				break;

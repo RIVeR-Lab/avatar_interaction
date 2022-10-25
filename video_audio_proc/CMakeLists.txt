@@ -60,6 +60,7 @@ add_executable(alsa_ndi_send
 target_link_libraries(alsa_ndi_send
   libasound.so
   ${CMAKE_SOURCE_DIR}/3rdparty/ndi/lib/x86_64-linux-gnu/libndi.so
+  rt
 )
 
 add_executable(pa_ndi_send
@@ -83,6 +84,7 @@ target_link_libraries(ndi_recv
   ${SDL2TTF_LIBRARY}
   ${CMAKE_SOURCE_DIR}/3rdparty/ndi/lib/x86_64-linux-gnu/libndi.so
   ${OpenCV_LIBS}
+  rt
   ${catkin_LIBRARIES}
 )
 
@@ -96,6 +98,7 @@ target_link_libraries(ndi_recv_pa
   ${SDL2_LIBRARIES}
   ${SDL2_IMAGE_LIBRARIES}
   ${CMAKE_SOURCE_DIR}/3rdparty/ndi/lib/x86_64-linux-gnu/libndi.so
+  rt
 )
 
 add_executable(ndi_send

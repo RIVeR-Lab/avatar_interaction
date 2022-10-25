@@ -14,6 +14,10 @@
 #include <stdio.h>
 #include <atomic>
 #include <thread>
+#include <sys/mman.h>
+#include <sys/stat.h> /* For mode constants */
+#include <fcntl.h>    /* For O_* constants */
+#include <errno.h>
 
 // ALSA
 #include <alsa/asoundlib.h>
@@ -49,6 +53,9 @@ static snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
 static snd_pcm_uframes_t frames = 1024;   // frames per period
 static unsigned int periods_per_buffer = 10;
 static int  audio_buffer = 100;
+static bool* voice_detected = NULL;
+static char shm_path[15] = "voice_shm";
+static bool echo_cancel = false;
 static SDL_Rect ui_rect;
 
 #define current_time   std::chrono::high_resolution_clock::now()
@@ -329,9 +336,20 @@ int init_device(char* snd, snd_pcm_stream_t stream_t)
 
 }
 
+void init_shm()
+{
+  int fd = shm_open(shm_path, O_RDONLY, 0);
+  if (fd == -1)
+  {
+    printf("Shared memory error: %s\n", strerror(errno));
+  }
+  voice_detected = (bool*)mmap(NULL, sizeof(bool), PROT_READ, MAP_SHARED, fd, 0);
+}
+
+
 static int help(char *prog_name)
 {
-	printf("Usage: %s [-i source_name -a snd_output]\n", prog_name);
+	printf("Usage: %s [-i source_name -a snd_output -e [turn on echo cancellation]]\n", prog_name);
 	return 0;
 }
 
@@ -347,7 +365,7 @@ int main(int argc, char* argv[])
 		printf("Debug message\n");
 	#endif
 
-	while ((opt = getopt(argc, argv, "hi:a:")) != -1)
+	while ((opt = getopt(argc, argv, "hi:a:e:")) != -1)
 	{
 		switch (opt) {
 			case 'i':
@@ -357,6 +375,10 @@ int main(int argc, char* argv[])
 				audio_output = optarg;
 				init_device(audio_output, SND_PCM_STREAM_PLAYBACK);
 				printf("Audio device initiated\n");
+				break;
+			case 'e':
+				echo_cancel = true;
+				printf("Turned on echo cancellation");
 				break;
 			case 'h':
 				return help(argv[0]);
@@ -426,7 +448,9 @@ int main(int argc, char* argv[])
 		}
 	}
 
-
+	// init shared memory for voice detection flag
+	if(echo_cancel)
+		init_shm();
 
 	SDL_Event event;
 	snd_pcm_sframes_t rc;
@@ -459,6 +483,7 @@ int main(int argc, char* argv[])
 	time_point t0 = current_time;
 	float frame = 0.0;
 
+	time_point silence_timer = current_time;
 	bool full_screen = false;
 	for (;;) {
 		// Without this the SDL window will appear as no responding the the OS.
@@ -559,6 +584,17 @@ int main(int argc, char* argv[])
 				NDIlib_recv_free_audio_v2(pNDI_recv, &audio_frame);
 
 				// start = current_time;
+				duration silence_d = current_time - silence_timer;
+				if (echo_cancel && *voice_detected)
+				{
+					silence_timer = current_time;
+				}
+				if (echo_cancel && silence_d.count() < 1)
+				{
+					// Mute the speaker
+					memset(audio_frame_16bpp_interleaved.p_data, 0, 4*audio_frame.no_samples);
+					printf("Mute\n");
+				}
 				rc = snd_pcm_writei(handle, audio_frame_16bpp_interleaved.p_data, audio_frame.no_samples);
 				if (rc == -EPIPE)
 				{
@@ -587,6 +623,7 @@ int main(int argc, char* argv[])
 				break;
 		}
 	}
+	shm_unlink(shm_path);
   snd_pcm_drain(handle);
 	snd_pcm_close(handle);
 	// Destroy the receiver
