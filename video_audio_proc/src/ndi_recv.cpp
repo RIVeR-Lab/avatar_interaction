@@ -532,7 +532,8 @@ int main(int argc, char* argv[])
 			{
 				if (!view_inited)
 				{
-					width = video_frame.xres;
+					width = video_frame.xres; 
+					\ASDFASDFASDFASDFFDASDFAADFASDADFDFASDFASDFDSF
 					height = video_frame.yres;
 					if (init_view(video_frame.FourCC) < 0)
 					{
@@ -541,11 +542,11 @@ int main(int argc, char* argv[])
 					view_inited = true;
 				}
 				auto f1 = total_f.video_frames;
-				if ((f1 - f0) % 30 == 0 && f1 != f0)
+				if (f1 -f0 >= 120)
 				{
 					time_point t1 = current_time;
 					auto duration = t1 - t0;
-					frame = 30.0 / duration.count() * 1000000000;
+					frame = 120.0 / duration.count() * 1000000000;
 					f0 = f1;
 					t0 = t1;
 				}

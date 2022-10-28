@@ -16,7 +16,7 @@
             }
         },
         "networks": {
-            "discovery": "",
+            "discovery": "10.180.2.113",
             "ips": ""
         },
         "tcp": {
