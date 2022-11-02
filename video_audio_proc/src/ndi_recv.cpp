@@ -24,14 +24,7 @@
 
 // utils
 #include "utils/video_frame_proc.h"
-// OpenCV
-#include "opencv2/highgui.hpp"
-#include <opencv2/imgproc.hpp>
-#include <opencv2/core.hpp>
 
-// ROS
-// #include <ros/ros.h>
-// #include <std_msgs/String.h>
 
 // Video config
 static SDL_Window *window = NULL;
@@ -533,7 +526,6 @@ int main(int argc, char* argv[])
 				if (!view_inited)
 				{
 					width = video_frame.xres; 
-					\ASDFASDFASDFASDFFDASDFAADFASDADFDFASDFASDFDSF
 					height = video_frame.yres;
 					if (init_view(video_frame.FourCC) < 0)
 					{

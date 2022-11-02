@@ -10,12 +10,6 @@ find_package(SDL2_image REQUIRED)
 find_package(SDL2TTF REQUIRED)
 find_package(Threads REQUIRED)
 find_package(libconfig++ REQUIRED)
-find_package(OpenCV REQUIRED)
-find_package(catkin REQUIRED COMPONENTS
-  roscpp
-  rospy
-  std_msgs
-)
 
 #Find ffmpeg directories
 find_package(PkgConfig)
@@ -83,8 +77,7 @@ target_link_libraries(ndi_recv
   ${SDL2_IMAGE_LIBRARIES}
   ${SDL2TTF_LIBRARY}
   ${CMAKE_SOURCE_DIR}/3rdparty/ndi/lib/x86_64-linux-gnu/libndi.so
-  ${OpenCV_LIBS}
-  rt
+  rt # for shm_open
   ${catkin_LIBRARIES}
 )
 
