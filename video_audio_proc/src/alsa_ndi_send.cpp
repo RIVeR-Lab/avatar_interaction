@@ -23,7 +23,7 @@ static unsigned int channel = 2;
 static snd_pcm_t *handle;
 static snd_pcm_hw_params_t *hw_params;
 static snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
-static snd_pcm_uframes_t frames = 500;   // frames per period
+static snd_pcm_uframes_t frames = 2000;   // frames per period
 static unsigned int periods_per_buffer = 2;
 static char snd_name[255] = "";
 static char playback[255] = "";

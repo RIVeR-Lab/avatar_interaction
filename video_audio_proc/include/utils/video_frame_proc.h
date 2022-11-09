@@ -5,7 +5,9 @@
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
+#ifdef OPENCV
 #include "opencv2/highgui.hpp"
+#endif 
 
 
 namespace video_frame_proc
@@ -48,6 +50,7 @@ namespace video_frame_proc
     }
   }
 
+  #ifdef OPENCV
   /**
    * @brief Fill an SDL texture with OpenCV Mat type data
    * 
@@ -63,4 +66,5 @@ namespace video_frame_proc
     memcpy(texture_data, mat.data, mat.rows * mat.cols * mat.channels());
     SDL_UnlockTexture(texture);
   }
+  #endif 
 }
