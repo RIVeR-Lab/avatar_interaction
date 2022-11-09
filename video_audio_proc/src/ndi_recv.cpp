@@ -403,7 +403,7 @@ int main(int argc, char* argv[])
 	NDIlib_recv_create_v3_t create_settings;
 	create_settings.color_format = NDIlib_recv_color_format_fastest;
 	NDIlib_source_t selected_source;
-	// create_settings.bandwidth = NDIlib_recv_bandwidth_highest;
+	create_settings.bandwidth = NDIlib_recv_bandwidth_lowest;
 	if (source_name == nullptr) 
 	{
 		// number of sources found

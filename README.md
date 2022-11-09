@@ -1,8 +1,15 @@
 # avatar_interaction
 The repository to hold all interaction related code for avatar
 
-A simple program to capture from webcam like device and render it in SDL.
-
+## TODO AFTER FINAL
+### Minors
+- [ ] snd device string auto search
+- [ ] documentation
+- [ ] modular design
+### Majors
+- [ ] NDI HX implementation to reduce bandwidth
+- [ ] WebRTC implementation
+- [ ] Watchdog 
 
 ## TODO
 Avatar Audio Video Processing
