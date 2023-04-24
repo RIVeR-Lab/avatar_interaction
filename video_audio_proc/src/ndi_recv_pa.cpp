@@ -55,6 +55,7 @@ static int  audio_buffer = 100;
 static bool echo_cancel = true;
 static bool* voice_detected = NULL;
 static char shm_path[15] = "voice_shm";
+static double mute_delay = 0.5;
 
 #define current_time   std::chrono::high_resolution_clock::now()
 using time_point = std::chrono::high_resolution_clock::time_point;
@@ -396,7 +397,7 @@ int main(int argc, char* argv[])
 				{
 					silence_timer = current_time;
 				}
-				if (echo_cancel && silence_d.count() < 1)
+				if (echo_cancel && silence_d.count() < mute_delay)
 				{
 					// Mute the speaker
 					memset(audio_frame_16bpp_interleaved.p_data, 0, 4*audio_frame.no_samples);
